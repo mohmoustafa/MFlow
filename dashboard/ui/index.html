@@ -9,17 +9,35 @@
      FlowForge design system - "glass" (Raycast / Arc inspired)
      Layers: tokens -> base -> shell -> page template -> surfaces.
      Component styles further down only consume these tokens.
+     Colour tokens are mirrored in studio.html (the two pages cannot share a
+     file under the CSP) - keep both in sync.
+
+     Breakpoint scale (max-width unless noted):
+       > 1280      desktop: full sidebar, side-by-side panes
+       961-1280    laptop: sidebar is an icon rail (expands on hover/focus),
+                   inspector moves below the canvas
+       1440        Flows list pane becomes a chip strip (the canvas needs width first)
+       1180        Artifacts/Agents/Skills list panes become chip strips
+       1080        two-column grids and the live-run rail stack
+       <= 960      tablet: sidebar becomes a top bar
+       760         inspector grid goes to one column
+       700         cost breakdown drops its model and bar columns
+       <= 640      phone: one column everywhere, full-width dialogs
+       max-height:760px (and min-width:961px): compact sidebar for short screens
+       pointer:coarse: 40px minimum touch targets
      ===================================================================== */
   :root{
     --bg:#07080c;
     --panel:rgba(22,24,33,.58); --panel2:rgba(255,255,255,.045); --panel-solid:#14161e;
     --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.15);
-    --text:#f5f6f8; --dim:#979db0; --faint:#6b7085;
+    --text:#f5f6f8; --dim:#979db0; --faint:#7f859b;
     --accent:#8b97ff; --accent2:#5b6cff; --violet:#a66bff; --pink:#ff5fa2;
     --green:#34d399; --red:#ff6b6b; --amber:#fbbf24; --blue:#7cb4ff; --gray:#6b7280;
     --code-bg:rgba(0,0,0,.34); --shadow:rgba(0,0,0,.5);
     --hairline:rgba(255,255,255,.06);
     --grad:linear-gradient(135deg,#5b6cff 0%,#9b5cff 55%,#ff5fa2 100%);
+    /* Same hues, deep enough for white text (>= 4.5:1 at every stop): primary buttons. */
+    --grad-cta:linear-gradient(135deg,#4553e6 0%,#7c3aed 55%,#d6246e 100%);
     --glass:saturate(170%) blur(22px);
     --radius:14px; --radius-sm:10px; --radius-md:14px; --radius-lg:20px; --radius-xl:26px;
     --space-xs:4px; --space-sm:8px; --space-md:14px; --space-lg:20px; --space-xl:28px;
@@ -35,9 +53,9 @@
     --bg:#eef0f6;
     --panel:rgba(255,255,255,.7); --panel2:rgba(15,23,42,.04); --panel-solid:#ffffff;
     --border:rgba(15,23,42,.09); --border-strong:rgba(15,23,42,.16);
-    --text:#0f1222; --dim:#5b6275; --faint:#8a90a2;
+    --text:#0f1222; --dim:#5b6275; --faint:#646a7e;
     --accent:#4f5bff; --accent2:#4353ff; --violet:#8b46ff; --pink:#e5488f;
-    --green:#0f9f6e; --red:#d63c3c; --amber:#b7791f; --blue:#2563eb; --gray:#6b7280;
+    --green:#0a7d55; --red:#c53030; --amber:#93600f; --blue:#2563eb; --gray:#6b7280;
     --code-bg:rgba(15,23,42,.035); --shadow:rgba(15,23,42,.12);
     --hairline:rgba(15,23,42,.06);
     --shadow-sm:0 1px 0 rgba(255,255,255,.8) inset, 0 8px 24px rgba(15,23,42,.06);
@@ -65,6 +83,12 @@
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:10px; border:3px solid transparent; background-clip:padding-box;}
   ::-webkit-scrollbar-thumb:hover{background-color:var(--faint);}
+  /* Skip link: off-screen until focused, then the first thing a keyboard user sees. */
+  .skip-link{position:fixed; top:8px; inset-inline-start:8px; z-index:100; padding:8px 14px; border-radius:var(--radius-sm);
+    background:var(--panel-solid); color:var(--text); border:1px solid var(--border-strong); box-shadow:var(--shadow-md);
+    font-weight:600; text-decoration:none; transform:translateY(-200%);}
+  .skip-link:focus{transform:none;}
+  main:focus{outline:none;}
 
   /* ---------- form controls ---------- */
   select,input[type=text],input[type=number],input[type=password],input[type=time],input[type=datetime-local],textarea{
@@ -114,7 +138,9 @@
     background:var(--panel2); border:1px solid var(--border);}
   .projpill{display:flex; align-items:center; gap:6px; min-width:0;}
   .projpill > #projectSelect{flex:1; min-width:0; height:34px; padding:0 10px; background:transparent;}
-  .projstate{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  /* Long values never break the sidebar: one line, ellipsis, full text on hover. */
+  .projstate{display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-width:0;}
+  .projstate .badge{max-width:100%; overflow:hidden; text-overflow:ellipsis; display:inline-block;}
   .sidenav{display:flex; flex-direction:column; gap:14px; overflow:auto; flex:1; margin:0 -2px; padding:0 2px;}
   .navgroup{display:flex; flex-direction:column; gap:1px;}
   .navcap{font-size:10.5px; letter-spacing:.9px; text-transform:uppercase; color:var(--faint); font-weight:650; padding:0 10px 5px;}
@@ -257,23 +283,25 @@
   .promptbar{display:flex; align-items:flex-start; gap:var(--space-sm);}
   .promptbar .btncol{display:flex; flex-direction:column; gap:6px; flex:0 0 auto;}
   .promptbar .btncol .btn{white-space:nowrap; justify-content:flex-start;}
-  .runbar .btn.primary{padding:9px 20px;}
-  /* Settings > providers: one card per executor, active one accented. */
-  .provgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:var(--space-md);}
-  .provcard{border:1px solid var(--border); border-radius:var(--radius); background:var(--panel2); padding:12px 14px;
-    display:flex; flex-direction:column; gap:8px; transition:border-color .15s, box-shadow .15s;}
-  .provcard:hover{border-color:var(--dim);}
-  .provcard.active{border-color:var(--accent2); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent2) 22%, transparent);}
+  /* Settings > providers: one card per executor, active one accented.
+     Card surface (background, border, radius) comes from the shared card rule. */
+  .provgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:var(--space-md); align-items:start;}
+  .provcard{display:flex; flex-direction:column; gap:8px; padding:16px;
+    transition:border-color .2s var(--ease), transform .2s var(--ease), background-color .2s var(--ease);}
+  .provcard:hover{border-color:var(--border-strong); transform:translateY(-1px);}
+  .provcard.active{border-color:color-mix(in srgb, var(--accent) 60%, transparent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+    background:color-mix(in srgb, var(--accent) 7%, var(--panel2));}
   .provcard.off{opacity:.62;}
   .provhead{display:flex; align-items:center; gap:10px;}
-  .provicon{width:36px; height:36px; flex:0 0 36px; border-radius:10px; display:grid; place-items:center; font-size:19px;
-    background:linear-gradient(135deg, color-mix(in srgb, var(--accent2) 22%, transparent), color-mix(in srgb, var(--accent) 10%, transparent));
-    border:1px solid color-mix(in srgb, var(--accent2) 30%, var(--border));}
+  .provicon{width:36px; height:36px; flex:0 0 36px; border-radius:12px; display:grid; place-items:center; font-size:19px;
+    background:var(--panel2); border:1px solid var(--border);}
   .provname{flex:1; min-width:0; font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .provdot{width:9px; height:9px; flex:0 0 9px; border-radius:50%; background:var(--dim);}
   .provdot.on{background:var(--green); box-shadow:0 0 6px color-mix(in srgb, var(--green) 60%, transparent);}
   .provdot.off{background:var(--red);}
   .provchips{display:flex; gap:6px; flex-wrap:wrap;}
+  /* Long sign-in states wrap inside the card instead of pushing past it on phones. */
+  .provchips .badge{white-space:normal; max-width:100%;}
   .provcard details{border-top:1px dashed var(--border); padding-top:6px;}
   .provcard summary{cursor:pointer; font-size:11.5px; color:var(--dim); list-style:none;}
   .provcard summary::-webkit-details-marker{display:none;}
@@ -282,14 +310,7 @@
   .provcard .paths{font-size:11px; color:var(--dim); direction:ltr; text-align:start; word-break:break-all; margin:6px 0 0; line-height:1.6;}
   .provcard .why{font-size:11.5px; color:var(--dim); line-height:1.7; margin:0;}
   .provcard .row{margin-top:auto; display:flex; gap:6px; flex-wrap:wrap;}
-  /* Modal: dimmed blurred backdrop, a panel that floats up. Opened by adding
-     .open; nothing about it depends on the card that launched it. */
-  .modalwrap{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center;
-    background:rgba(4,8,16,.6); backdrop-filter:blur(3px); padding:20px;}
-  .modalwrap.open{display:flex;}
-  .modal{width:min(440px,100%); background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
-    padding:18px 20px; display:flex; flex-direction:column; gap:10px;
-    box-shadow:0 18px 60px rgba(0,0,0,.55); animation:modalin .16s ease;}
+  /* API modal content (the dialog frame itself lives under "overlays"). */
   @keyframes modalin{from{opacity:0; transform:translateY(10px) scale(.98);} to{opacity:1; transform:none;}}
   .modalhead{display:flex; align-items:center; gap:10px; font-size:15px; font-weight:600;}
   .modalhead .provicon{width:30px; height:30px; font-size:16px;}
@@ -301,13 +322,11 @@
   .modal .checkline{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text);}
   .modal .mrow{display:flex; gap:8px; justify-content:flex-end; margin-top:4px;}
   /* Usage: pre-run estimate chip, live run counter, the Usage page. */
-  .estbox{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; font-size:12px; color:var(--dim);
-    padding:7px 10px; border:1px dashed var(--border); border-radius:var(--radius-sm); background:color-mix(in srgb, var(--panel2) 60%, transparent);}
+  .estbox{display:flex; flex-direction:column; flex-wrap:wrap; align-items:stretch; gap:6px 12px; padding:12px 14px; font-size:12px; color:var(--dim);}
   .estbox b{color:var(--text); font-weight:600; font-family:var(--mono);}
   .estbox .sep{opacity:.4;}
-  .estbox{flex-direction:column; align-items:stretch;}
   .esthead{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:12.5px; color:var(--text);}
-  .estbig{font-size:17px; font-weight:700; font-family:var(--mono); color:var(--accent);}
+  .estbig{font-size:18px; font-weight:700; font-family:var(--mono); color:var(--text);}
   .estbig .estusd{font-size:13px; color:var(--green); margin-inline-start:4px;}
   .estusd{color:var(--green); font-family:var(--mono); font-weight:700;}
   .estacu{font-size:11px; color:var(--dim); font-family:var(--mono); font-weight:500;}
@@ -322,50 +341,35 @@
   .estbox details[open] summary::before{content:'▾ ';}
   .runusage{font-size:11.5px; font-weight:500; color:var(--dim); font-family:var(--mono); margin-inline-start:8px;}
   .kpis{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:var(--space-sm); margin:10px 0;}
-  .kpi{border:1px solid var(--border); border-radius:var(--radius); background:var(--panel2); padding:10px 12px;}
-  .kpi .k{font-size:11.5px; color:var(--dim);}
-  .kpi .v{font-size:20px; font-weight:650; font-family:var(--mono); margin-top:2px;}
+  .kpi{padding:14px 16px;}
+  .kpi .k{font-size:11.5px; color:var(--faint); font-weight:500;}
+  .kpi .v{font-size:24px; font-weight:700; letter-spacing:-.5px; font-family:var(--font); margin-top:4px;}
   .kpi .s{font-size:11.5px; color:var(--dim); margin-top:2px;}
   .delta.up{color:var(--red);} .delta.down{color:var(--green);}
-  .ubudget{height:8px; border-radius:999px; background:var(--panel2); border:1px solid var(--border); overflow:hidden; margin:6px 0 2px;}
-  .ubudget > i{display:block; height:100%; background:var(--accent2);}
+  .ubudget{height:6px; border-radius:999px; background:var(--code-bg); border:none; overflow:hidden; margin:6px 0 2px;}
+  .ubudget > i{display:block; height:100%; background:var(--grad);}
   .ubudget.warn > i{background:var(--amber);} .ubudget.over > i{background:var(--red);}
-  .uchart{display:flex; align-items:flex-end; gap:3px; height:140px; padding:8px 4px 0; border-bottom:1px solid var(--border); margin-top:8px;}
-  .uchart .b{flex:1; min-width:4px; background:color-mix(in srgb, var(--accent2) 70%, transparent); border-radius:3px 3px 0 0; position:relative; transition:background .15s;}
-  .uchart .b:hover{background:var(--accent);}
-  .uchart .b.today{background:var(--accent);}
+  .uchart{display:flex; align-items:flex-end; gap:4px; height:140px; padding:8px 4px 0; border-bottom:1px solid var(--border); margin-top:8px;}
+  .uchart .b{flex:1; min-width:4px; background:color-mix(in srgb, var(--accent) 45%, transparent); border-radius:5px 5px 2px 2px; position:relative; transition:background .15s;}
   .uchart .b.zero{background:var(--border); height:2px !important;}
+  .uchart .b:hover, .uchart .b.today{background:var(--grad);}
   .uaxis{display:flex; justify-content:space-between; font-size:10.5px; color:var(--dim); margin-top:3px; direction:ltr;}
   .utable{width:100%; border-collapse:collapse; font-size:12.5px;}
-  .utable th,.utable td{padding:6px 8px; border-bottom:1px solid var(--border); text-align:start; white-space:nowrap;}
-  .utable th{color:var(--dim); font-weight:500; font-size:11.5px; cursor:default;}
+  .utable th,.utable td{padding:9px 10px; border-bottom:1px solid var(--hairline); text-align:start; white-space:nowrap;}
+  .utable th{color:var(--faint); font-weight:500; text-transform:uppercase; font-size:10.5px; letter-spacing:.5px; cursor:default;}
   .utable td.num,.utable th.num{text-align:end; font-family:var(--mono);}
   .utable td.wrap{white-space:normal; overflow-wrap:anywhere; max-width:420px;}
-  .utable tr:hover td{background:color-mix(in srgb, var(--panel2) 70%, transparent);}
-  .ushare{display:inline-block; height:6px; border-radius:3px; background:var(--accent2); vertical-align:middle; margin-inline-end:6px;}
+  .utable tr:hover td{background:color-mix(in srgb, var(--text) 3%, transparent);}
+  .ushare{display:inline-block; height:6px; border-radius:3px; background:var(--grad); vertical-align:middle; margin-inline-end:6px;}
   .uscroll{overflow-x:auto;}
   .livedot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--green); animation:pulse 1.2s infinite;}
-  .hint{font-size:11.5px; color:var(--dim); margin-top:var(--space-sm); line-height:1.6; padding-inline-start:10px; border-inline-start:2px solid var(--border);}
-  /* Long explanations fold to one line; a click opens them. */
-  .hint.help{max-height:1.7em; overflow:hidden; cursor:pointer; position:relative; padding-inline-end:20px;}
-  .hint.help::after{content:'ⓘ'; position:absolute; inset-inline-end:2px; top:0; font-size:12px; color:var(--accent); opacity:.8;}
-  .hint.help.open{max-height:none;}
-  .hint.help.open::after{content:'×';}
-  .hint.help:not(.open){-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent); mask-image:linear-gradient(90deg,#000 80%,transparent);}
-  [dir=rtl] .hint.help:not(.open){-webkit-mask-image:linear-gradient(270deg,#000 80%,transparent); mask-image:linear-gradient(270deg,#000 80%,transparent);}
-  /* A gate waiting for a decision is visible from every tab. */
-  #gateBar{display:none; position:sticky; top:calc(var(--topbar) + 10px); z-index:40; margin:0 0 var(--space-md); padding:10px 14px; border-radius:var(--radius-md);
-    background:color-mix(in srgb, var(--amber) 16%, var(--panel)); border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);
-    color:var(--text); align-items:center; gap:10px; box-shadow:var(--shadow-md); font-size:13.5px;}
-  #gateBar.on{display:flex;}
-  #gateBar b{color:var(--amber);}
   /* Structured event log. */
-  .logrow{display:grid; grid-template-columns:52px 1fr; gap:8px; padding:3px 0; border-bottom:1px dashed color-mix(in srgb, var(--border) 60%, transparent); font-family:var(--mono); font-size:11.5px; direction:ltr; text-align:left;}
+  .logrow{display:grid; grid-template-columns:52px 1fr; gap:8px; padding:3px 0; border-bottom:1px dashed var(--hairline); font-family:var(--mono); font-size:11.5px; direction:ltr; text-align:left;}
   .logrow .t{color:var(--dim);} .logrow.ok .m{color:var(--green);} .logrow.bad .m{color:var(--red);} .logrow.gate .m{color:var(--amber);} .logrow.start .m{color:var(--accent);}
   /* Recent runs. */
-  .runrow{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:10px; align-items:center; padding:8px 10px; border-radius:var(--radius-sm); border:1px solid var(--hairline); margin-bottom:6px; background:var(--panel2);}
+  .runrow{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:10px; align-items:center; padding:8px 10px; margin-bottom:6px;}
   .runrow > div{min-width:0;}
-  .runrow:hover{border-color:var(--border);}
+  .runrow:hover{border-color:var(--border-strong);}
   .runrow .task{font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .runrow .meta{font-size:11px; color:var(--dim); white-space:nowrap; font-family:var(--mono);}
   .runrow .cost{color:var(--green); font-family:var(--mono); font-size:12px; font-weight:600; white-space:nowrap;}
@@ -374,19 +378,22 @@
   .gitcode.M{background:color-mix(in srgb, var(--amber) 70%, #000);} .gitcode.A,.gitcode.U{background:color-mix(in srgb, var(--green) 65%, #000);}
   .gitcode.D{background:color-mix(in srgb, var(--red) 65%, #000);} .gitcode.R{background:color-mix(in srgb, var(--accent2) 70%, #000);}
   /* Runs board. */
-  .boardgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:var(--space-md);}
-  .runcard{border:1px solid var(--border); border-radius:var(--radius-md); background:var(--panel2); padding:12px 14px; display:flex; flex-direction:column; gap:8px;}
+  .boardgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr)); gap:var(--space-md);}
+  .runcard{display:flex; flex-direction:column; gap:8px; padding:16px;
+    transition:border-color .2s var(--ease), transform .2s var(--ease), background-color .2s var(--ease);}
   .runcard.gate{border-color:color-mix(in srgb, var(--amber) 55%, transparent); box-shadow:0 0 0 2px color-mix(in srgb, var(--amber) 18%, transparent);}
+  .runcard:hover{border-color:var(--border-strong); transform:translateY(-1px);}
   .runcard .proj{font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:8px;}
   .runcard .task{font-size:12.5px; color:var(--dim); line-height:1.5; max-height:3em; overflow:hidden;}
-  .runcard .prog{height:6px; border-radius:3px; background:var(--code-bg); overflow:hidden; border:1px solid var(--hairline);}
-  .runcard .prog i{display:block; height:100%; background:var(--accent2); transition:width .4s ease;}
+  .runcard .prog{height:6px; border-radius:3px; background:var(--code-bg); overflow:hidden; border:none;}
+  .runcard .prog i{display:block; height:100%; background:var(--grad); transition:width .4s ease;}
   .runcard .meta{font-size:11px; color:var(--dim); font-family:var(--mono); display:flex; gap:10px; flex-wrap:wrap;}
   .runcard .row{margin-top:auto;}
   /* minmax(0,1fr) + min-width:0: a long task clamps to two lines instead of
      stretching the row past the panel. */
-  .qrow{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; padding:9px 12px; border:1px solid var(--hairline); border-radius:var(--radius-sm); margin-bottom:6px; background:var(--panel2);}
+  .qrow{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; padding:9px 12px; margin-bottom:6px;}
   .qrow > div{min-width:0;}
+  .qrow:hover{border-color:var(--border-strong);}
   .qrow .pos{font-family:var(--mono); color:var(--dim); min-width:22px; text-align:center;}
   .qrow .task{font-size:12.5px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; word-break:break-word;}
   .qrow .task .badge{vertical-align:middle;}
@@ -394,90 +401,37 @@
   .qrow .st{min-width:22px; text-align:center; font-weight:700;}
   .qrow .st.done{color:var(--green);} .qrow .st.failed{color:var(--red);} .qrow .st.cancelled{color:var(--dim);}
   .boardform summary{cursor:pointer; color:var(--accent); font-size:12.5px;}
-  .fnode .cost{position:absolute; top:-9px; inset-inline-end:10px; background:var(--panel); border:1px solid color-mix(in srgb, var(--green) 55%, transparent); color:var(--green);
-    font-family:var(--mono); font-size:10.5px; font-weight:600; padding:1px 7px; border-radius:9px; pointer-events:none;}
-  .btn{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); background:var(--panel2); color:var(--text); padding:7px 16px; border-radius:var(--radius-sm); cursor:pointer; font-size:13px; font-family:inherit; font-weight:500; white-space:nowrap; transition:border-color .15s ease, background-color .15s ease, color .15s ease, transform .12s ease, box-shadow .15s ease;}
-  .btn:hover{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--panel2)); transform:translateY(-1px);}
-  .btn:active{transform:translateY(0);}
-  .btn.primary{background:var(--grad); border-color:transparent; color:#fff; box-shadow:0 2px 10px color-mix(in srgb, var(--accent2) 38%, transparent);}
-  .btn.primary:hover{color:#fff; filter:brightness(1.12); border-color:transparent; box-shadow:0 4px 18px color-mix(in srgb, var(--accent2) 48%, transparent);}
-  .btn.approve{background:transparent; border-color:var(--green); color:var(--green);}
-  .btn.approve:hover{color:var(--green); border-color:var(--green); background:color-mix(in srgb, var(--green) 12%, transparent);}
-  .btn.reject{background:transparent; border-color:var(--red); color:var(--red);}
-  .btn.reject:hover{color:var(--red); border-color:var(--red); background:color-mix(in srgb, var(--red) 12%, transparent);}
-  .btn.small{padding:5px 12px; font-size:12px;}
-  .btn.chip-active{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--panel2));}
-  .btn:disabled{opacity:.45; cursor:default; transform:none;}
-
-  /* ---------- pipeline ---------- */
-  #stages{display:flex; flex-direction:column; gap:6px;}
-  .stage{
-    display:flex; align-items:flex-start; gap:var(--space-md); padding:10px var(--space-md); padding-inline-start:10px;
-    border-radius:var(--radius-md); background:var(--panel2); border:1px solid transparent;
-    border-inline-start:3px solid var(--border);
-    transition:background-color .15s ease, border-color .15s ease;
-  }
-  .stage:hover{border-color:var(--border); border-inline-start-color:var(--gray); background:color-mix(in srgb, var(--panel) 55%, var(--panel2));}
-  .stage .dot{width:10px; height:10px; border-radius:50%; margin-top:6px; flex:none; background:var(--gray); box-shadow:0 0 0 3px color-mix(in srgb, var(--gray) 18%, transparent);}
-  .stage.running{border-color:color-mix(in srgb, var(--blue) 45%, var(--border)); border-inline-start-color:var(--blue); background:color-mix(in srgb, var(--blue) 8%, var(--panel2));}
-  .stage.running .dot{background:var(--blue); box-shadow:0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent); animation:pulse 1s infinite;}
-  .stage.waiting_gate{border-color:color-mix(in srgb, var(--amber) 45%, var(--border)); border-inline-start-color:var(--amber); background:color-mix(in srgb, var(--amber) 8%, var(--panel2));}
-  .stage.waiting_gate .dot{background:var(--amber); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 22%, transparent); animation:pulse 1s infinite;}
-  .resumebar{display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:10px; border-radius:var(--radius-sm); font-size:12.5px;
-    background:color-mix(in srgb, var(--amber) 12%, var(--panel2)); border:1px solid color-mix(in srgb, var(--amber) 40%, transparent);}
-  .stage.interrupted{opacity:.85; border-inline-start-color:var(--amber);}
-  .stage.interrupted .dot{background:var(--amber);}
-  .stage.done{border-inline-start-color:var(--green);}
-  .stage.done .dot{background:var(--green); box-shadow:0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);}
-  .stage.failed{border-color:color-mix(in srgb, var(--red) 45%, var(--border)); border-inline-start-color:var(--red); background:color-mix(in srgb, var(--red) 8%, var(--panel2));}
-  .stage.failed .dot{background:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent);}
-  .stage.skipped{opacity:.45;}
-  .stage .info{flex:1; min-width:0;}
-  .stage .t{font-size:13.5px; font-weight:600;}
-  .stage .t b{color:var(--accent); font-weight:500; font-family:var(--mono); font-size:11.5px; margin-inline-start:6px; opacity:.85;}
-  .stage .note{font-size:12px; color:var(--dim); margin-top:3px; overflow-wrap:anywhere; line-height:1.5;}
-  .stage .meta{text-align:end; font-size:11px; color:var(--dim); font-family:var(--mono); direction:ltr; white-space:nowrap; line-height:1.7; flex:none;}
-  .loops{font-size:11px; color:var(--amber); margin-inline-start:var(--space-xs);}
-
-  /* ---------- gate ---------- */
-  #gateBox{
-    border:1px solid color-mix(in srgb, var(--amber) 60%, var(--border));
-    background:color-mix(in srgb, var(--amber) 9%, var(--panel));
-    box-shadow:0 0 0 1px color-mix(in srgb, var(--amber) 12%, transparent), var(--shadow-md); display:none;
-  }
-  #gateBox > h2{color:var(--amber); border-bottom-color:color-mix(in srgb, var(--amber) 25%, transparent);}
-  #gateBox .q{font-size:14.5px; margin-bottom:var(--space-sm); line-height:1.6;}
-  #gateBox textarea{width:100%; min-height:56px; margin-bottom:var(--space-sm);}
 
   /* ---------- code/content areas ---------- */
-  pre,.md, textarea.code{background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius-md); font-size:12.5px; line-height:1.65;}
+  pre,.md, textarea.code{background:var(--code-bg); border:1px solid var(--hairline); border-radius:var(--radius-md);}
+  pre, textarea.code{font-size:12.5px; line-height:1.65;}
   pre{padding:var(--space-md); overflow:auto; max-height:540px; white-space:pre-wrap; overflow-wrap:anywhere; direction:ltr; text-align:left; font-family:var(--mono); color:var(--text);}
   textarea.code{width:100%; padding:10px; resize:vertical; direction:ltr; text-align:left; font-family:var(--mono); color:var(--text);}
-  .md{padding:var(--space-md) var(--space-lg); overflow:auto; max-height:560px; direction:ltr; text-align:left;}
-  .md h1,.md h2,.md h3{margin:14px 0 7px; line-height:1.35;} .md h1{font-size:19px; font-weight:700;} .md h2{font-size:16px; color:var(--accent); font-weight:600;} .md h3{font-size:14px; font-weight:600;}
+  .md{padding:20px 24px; overflow:auto; max-height:560px; direction:ltr; text-align:left; line-height:1.7; font-size:13.5px;}
+  .md h1,.md h2,.md h3{margin:14px 0 7px; line-height:1.35;} .md h1{font-size:20px; font-weight:700; letter-spacing:-.3px;} .md h2{font-size:16px; color:var(--text); font-weight:600;} .md h3{font-size:14px; font-weight:600;}
+  .md h2::before{display:none;}
   .md p{margin:7px 0;} .md li{margin:4px 0 4px 18px;}
   .md code{background:var(--panel2); border:1px solid var(--border); border-radius:var(--space-xs); padding:1px 5px; font-family:var(--mono); font-size:12px;}
   .md pre{max-height:320px; margin:8px 0;} .md pre code{background:none; border:none; padding:0;}
   .filelist{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:var(--space-md); padding-bottom:var(--space-md); border-bottom:1px solid var(--hairline);}
-  #log{max-height:200px; overflow:auto; font-size:12px; color:var(--dim); direction:ltr; text-align:left; font-family:var(--mono); background:var(--code-bg); border-radius:var(--radius-md); padding:var(--space-sm) var(--space-md); border:1px solid var(--border); line-height:1.6;}
-  /* the copy-command line is a secondary affordance: quiet until hovered */
-  .cmdline{display:flex; gap:var(--space-sm); align-items:center; background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius-md); padding:8px 12px; direction:ltr; opacity:.75; transition:opacity .15s ease, border-color .15s ease;}
-  .cmdline:hover,.cmdline:focus-within{opacity:1; border-color:color-mix(in srgb, var(--accent) 35%, var(--border));}
-  .cmdline code{flex:1; font-family:var(--mono); font-size:12.5px; color:var(--dim); overflow-wrap:anywhere;}
-  .task-line{font-size:13.5px; margin-bottom:var(--space-sm); overflow-wrap:anywhere; line-height:1.6;}
+  #log{max-height:200px; overflow:auto; font-size:12px; color:var(--dim); direction:ltr; text-align:left; font-family:var(--mono); background:var(--code-bg); border-radius:var(--radius-md); padding:var(--space-sm) var(--space-md); border:1px solid var(--hairline); line-height:1.6;}
+  /* the copy-command line is a secondary affordance: quiet colours, accent border on hover */
+  .cmdline{display:flex; gap:var(--space-sm); align-items:center; background:var(--code-bg); border:1px solid var(--hairline); border-radius:var(--radius-md); padding:6px 6px 6px 14px; direction:ltr; transition:opacity .15s ease, border-color .15s ease;}
+  .cmdline:hover,.cmdline:focus-within{border-color:color-mix(in srgb, var(--accent) 35%, var(--border));}
+  .cmdline code{flex:1; font-family:var(--mono); font-size:12px; color:var(--faint); overflow-wrap:anywhere;}
   .kv{display:grid; grid-template-columns:auto 1fr; gap:var(--space-sm) var(--space-md); align-items:center; font-size:13px;}
   .kv label{color:var(--dim); white-space:nowrap; font-weight:500;}
-  .proj-item{display:flex; align-items:center; gap:var(--space-sm); padding:var(--space-sm) var(--space-md); border:1px solid var(--border); border-radius:var(--radius-md); margin-bottom:6px; background:var(--panel2); transition:background-color .15s ease, border-color .15s ease;}
-  .proj-item:hover{border-color:var(--accent);}
+  .proj-item{display:flex; align-items:center; gap:var(--space-sm); padding:var(--space-sm) var(--space-md); margin-bottom:6px; transition:background-color .15s ease, border-color .15s ease;}
+  .proj-item:hover{border-color:var(--border-strong);}
   .proj-item .path{flex:1; direction:ltr; text-align:left; font-family:var(--mono); font-size:12px; overflow-wrap:anywhere;}
-  .proj-item.active{border-color:var(--green); background:color-mix(in srgb, var(--green) 8%, var(--panel2));}
+  .proj-item.active{border-color:color-mix(in srgb, var(--green) 50%, transparent); background:color-mix(in srgb, var(--green) 7%, var(--panel2));}
   #liveTail{max-height:260px;}
   #liveSection{display:none;}
 
   /* ---------- activity feed ---------- */
-  .feedbox{max-height:420px; overflow:auto; background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius-md); padding:var(--space-sm) var(--space-md); direction:ltr; text-align:left; font-family:var(--mono); font-size:12px;}
+  .feedbox{max-height:420px; overflow:auto; background:var(--code-bg); border:1px solid var(--hairline); border-radius:var(--radius-md); padding:var(--space-sm) var(--space-md); direction:ltr; text-align:left; font-family:var(--mono); font-size:12px;}
   #actFeedHome{max-height:200px;}
-  .act-row{padding:3px 0; border-bottom:1px dashed color-mix(in srgb, var(--border) 50%, transparent);}
+  .act-row{padding:3px 0; border-bottom:1px dashed var(--hairline);}
   .act-row .t{color:var(--dim); margin-inline-end:8px;}
   .act-row .ty{display:inline-block; min-width:56px; color:var(--amber); font-weight:500;}
   .act-row .ty.change{color:var(--blue);} .act-row .ty.rename{color:var(--green);}
@@ -489,10 +443,9 @@
   .badge-warn{color:var(--amber); border-color:var(--amber); background:color-mix(in srgb, var(--amber) 12%, transparent);}
   .md table{border-collapse:collapse; margin:8px 0; font-size:12.5px; width:100%;}
   .md th,.md td{border:1px solid var(--border); padding:6px 10px; text-align:left;}
-  .md th{background:var(--panel2); color:var(--accent); font-weight:600;}
+  .md th{background:var(--panel2); color:var(--text); font-weight:600;}
   .md li.todo{list-style:none;} .md li.todo::before{content:'☐ '; color:var(--amber);}
   .md li.donebox{list-style:none;} .md li.donebox::before{content:'☑ '; color:var(--green);}
-  .modelchip{display:inline-block; padding:1px 7px; border-radius:999px; font-size:10.5px; border:1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent); font-family:var(--mono); margin-top:2px; font-weight:500;}
   .task-raw{font-size:11.5px; color:var(--dim); margin:-4px 0 10px; overflow-wrap:anywhere; opacity:.75;}
   .chg-file{cursor:pointer; padding:3px 8px; border-radius:var(--space-xs); transition:background-color .15s ease, color .15s ease;}
   .chg-file:hover{background:var(--panel2); color:var(--accent);}
@@ -503,28 +456,32 @@
   .ic{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; pointer-events:none;}
   .ic.xs{width:14px; height:14px;} .ic.sm{width:18px; height:18px;}
   #flowPalette{
-    display:flex; gap:var(--space-lg); flex-wrap:wrap; margin-bottom:var(--space-md);
-    padding:var(--space-md); border:1px solid var(--border); border-radius:var(--radius-md);
-    background:color-mix(in srgb, var(--panel2) 60%, transparent);
+    display:flex; gap:10px 18px; flex-wrap:wrap; margin-bottom:var(--space-md);
+    padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius-md);
+    background:var(--panel2);
   }
   .palgroup{display:flex; flex-direction:column; gap:var(--space-xs);}
   .palgroup > .cap{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; font-weight:600;}
-  .palgroup > .items{display:flex; gap:var(--space-sm); flex-wrap:wrap;}
+  .palgroup > .items{display:flex; gap:6px; flex-wrap:wrap;}
+  /* Palette and preset tiles: compact chips (icon + label on one line) - big
+     78x70 tiles took three rows before any canvas or form was visible. */
   .palbtn{
-    width:78px; min-height:70px; padding:var(--space-xs) 4px; border-radius:var(--radius-md); border:1px solid var(--border);
+    width:auto; min-height:0; height:34px; padding:0 12px 0 10px; border-radius:10px; border:1px solid var(--border);
     background:var(--panel2); color:var(--dim); cursor:pointer;
-    display:inline-flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
-    font-family:inherit; font-size:10.5px; line-height:1.25; text-align:center;
+    display:inline-flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:8px;
+    font-family:inherit; font-size:12px; line-height:1.25; text-align:center;
     transition:border-color .15s ease, background-color .15s ease, transform .12s ease, box-shadow .15s ease;
   }
-  .palbtn .lbl{color:var(--dim); overflow-wrap:anywhere; font-weight:500;}
-  .palbtn:hover{color:var(--role); border-color:var(--role); background:color-mix(in srgb, var(--role) 12%, var(--panel2)); transform:translateY(-2px); box-shadow:0 4px 10px var(--shadow);}
+  .palbtn .ic{width:16px; height:16px;}
+  .palbtn .lbl{color:var(--dim); overflow-wrap:anywhere; font-weight:500; white-space:nowrap;}
+  .palbtn:hover{color:var(--role); border-color:var(--role); background:color-mix(in srgb, var(--role) 12%, var(--panel2)); transform:none; box-shadow:0 4px 10px var(--shadow);}
   .palbtn:hover .lbl{color:var(--text);}
+  .palbtn.chip-active{border-color:color-mix(in srgb, var(--accent) 55%, transparent); background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--text);}
   #canvasWrap{
     position:relative; direction:ltr; overflow:auto; resize:vertical;
-    height:460px; min-height:240px; border:1px solid var(--border); border-radius:var(--radius-md);
+    height:clamp(380px, calc(100vh - 380px), 820px); min-height:240px; border:1px solid var(--border); border-radius:var(--radius-md);
     background:var(--code-bg);
-    background-image:radial-gradient(color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px);
+    background-image:radial-gradient(color-mix(in srgb, var(--text) 10%, transparent) 1px, transparent 1px);
     background-size:20px 20px;
   }
   #flowCanvas{position:relative; width:2400px; height:1400px;}
@@ -535,12 +492,14 @@
   #flowEdges path.ghost{fill:none; stroke:var(--dim); stroke-width:2; stroke-dasharray:4 4;}
   #flowNodes{position:absolute; inset:0;}
   .fnode{
-    position:absolute; width:150px; min-height:170px; padding:12px 10px 10px; border-radius:var(--radius-lg);
-    border:1px solid var(--border); background:var(--panel); box-sizing:border-box;
+    position:absolute; width:150px; min-height:170px; padding:12px 10px 10px; border-radius:18px;
+    border:1px solid var(--border); background:var(--panel-solid); box-sizing:border-box;
     display:flex; flex-direction:column; align-items:center; gap:6px;
-    cursor:grab; user-select:none; touch-action:none; box-shadow:0 2px 8px var(--shadow);
+    cursor:grab; user-select:none; touch-action:none; box-shadow:0 8px 24px var(--shadow);
     transition:border-color .15s ease, box-shadow .15s ease;
   }
+  .fnode .cost{position:absolute; top:-9px; inset-inline-end:10px; background:var(--panel-solid); border:1px solid color-mix(in srgb, var(--green) 55%, transparent); color:var(--green);
+    font-family:var(--mono); font-size:10.5px; font-weight:600; padding:1px 7px; border-radius:9px; pointer-events:none;}
   .fnode:hover{border-color:var(--role); box-shadow:0 6px 16px var(--shadow);}
   .fnode[data-drag="1"]{cursor:grabbing; box-shadow:0 10px 26px var(--shadow); z-index:5;}
   .fnode[data-sel="1"]{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);}
@@ -565,7 +524,7 @@
   .fnode .tool.del:hover{color:var(--red); border-color:var(--red); background:color-mix(in srgb, var(--red) 8%, var(--panel));}
   .port{
     position:absolute; width:15px; height:15px; border-radius:50%;
-    border:2px solid var(--accent); background:var(--panel); cursor:crosshair; touch-action:none;
+    border:2px solid var(--accent); background:var(--panel-solid); cursor:crosshair; touch-action:none;
     transition:transform .12s ease, background-color .12s ease;
   }
   .port.next{inset-inline-end:-8px; top:50%; margin-top:-7px; inset-inline-start:auto; right:-8px; left:auto;}
@@ -583,7 +542,6 @@
   .fnode .badges span.model{border-color:var(--accent); color:var(--accent);}
   .fnode .badges span.effort{border-color:var(--green); color:var(--green);}
   #canvasArea{display:grid; grid-template-columns:1fr 290px; gap:var(--space-md); align-items:start;}
-  @media (max-width:1100px){ #canvasArea{grid-template-columns:1fr;} }
   #inspectorPane{
     border:1px solid var(--border); border-radius:var(--radius-md); background:var(--panel2);
     padding:var(--space-md); position:sticky; top:70px; max-height:460px; overflow:auto;
@@ -599,32 +557,7 @@
   .formgrid > label{color:var(--dim); font-weight:500;}
   .formgrid > textarea{align-self:stretch;}
   .formgrid > .tag{font-family:var(--mono); color:var(--accent); direction:ltr;}
-  @media (max-width:800px){ .formgrid{grid-template-columns:1fr;} }
 
-  /* ---------- folder picker ---------- */
-  #pickerBack{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50; display:none;}
-  #pickerBack.open{display:flex; align-items:center; justify-content:center;}
-  #picker{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
-    width:min(760px,94vw); max-height:82vh; display:flex; flex-direction:column; box-shadow:0 16px 48px var(--shadow);}
-  #picker header{position:static; height:auto; padding:10px var(--space-lg); overflow:visible; background:var(--panel); backdrop-filter:none; border-bottom:1px solid var(--border); border-radius:var(--radius-lg) var(--radius-lg) 0 0;}
-  #picker header h1{font-size:14px;}
-  #pickerPath{font-family:var(--mono); font-size:12px; direction:ltr; color:var(--dim);
-    padding:var(--space-sm) var(--space-lg); border-bottom:1px solid var(--border); overflow-wrap:anywhere;}
-  #pickerList{overflow:auto; padding:var(--space-sm); flex:1; min-height:220px;}
-  .pickrow{display:flex; align-items:center; gap:var(--space-sm); padding:var(--space-sm) var(--space-md); border-radius:var(--radius-sm); cursor:pointer; font-size:13.5px; transition:background-color .15s ease;}
-  .pickrow:hover{background:var(--panel2);}
-  .pickrow .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:ltr; text-align:start;}
-  .pickrow .tags{display:flex; gap:var(--space-xs); flex:none;}
-  .pickrow .tag{font-size:10px; padding:1px 6px; border-radius:999px; border:1px solid var(--border); color:var(--dim);}
-  .pickrow .tag.hit{color:var(--green); border-color:var(--green);}
-  #pickerFoot{display:flex; gap:var(--space-sm); align-items:center; padding:var(--space-sm) var(--space-lg); border-top:1px solid var(--border); flex-wrap:wrap;}
-
-  /* ---------- toasts ---------- */
-  #toasts{position:fixed; bottom:18px; inset-inline-start:18px; z-index:99; display:flex; flex-direction:column; gap:var(--space-sm);}
-  .toast{background:var(--panel); border:1px solid var(--border); border-inline-start:4px solid var(--accent); border-radius:var(--radius-md); padding:10px var(--space-md); font-size:13px; max-width:min(420px,90vw); box-shadow:var(--shadow-md); animation:slidein .2s ease;}
-  .toast.ok{border-inline-start-color:var(--green);}
-  .toast.err{border-inline-start-color:var(--red);}
-  @keyframes slidein{from{transform:translateY(10px); opacity:0;} to{transform:none; opacity:1;}}
   .empty{display:block; color:var(--faint); font-size:12.5px; line-height:1.7; padding:22px var(--space-lg); text-align:center;
     border:1px dashed var(--border); border-radius:var(--radius-md); background:transparent;}
 
@@ -641,9 +574,9 @@
   .btn:hover{border-color:var(--border-strong); background:color-mix(in srgb, var(--text) 8%, transparent); color:var(--text); transform:none;}
   .btn:active{transform:scale(.97);}
   .btn.small{height:28px; padding:0 11px; font-size:12px; border-radius:8px;}
-  .btn.primary{background:var(--grad); border-color:transparent; color:#fff;
+  .btn.primary{background:var(--grad-cta); border-color:transparent; color:#fff;
     box-shadow:0 8px 24px -6px color-mix(in srgb, #7c5cff 60%, transparent), inset 0 1px 0 rgba(255,255,255,.25);}
-  .btn.primary:hover{filter:brightness(1.1) saturate(1.05); color:#fff; border-color:transparent; background:var(--grad);
+  .btn.primary:hover{filter:brightness(1.1) saturate(1.05); color:#fff; border-color:transparent; background:var(--grad-cta);
     box-shadow:0 12px 30px -6px color-mix(in srgb, #7c5cff 70%, transparent), inset 0 1px 0 rgba(255,255,255,.3);}
   .runbar .btn.primary, .cmd-tools .btn.primary{height:34px; padding:0 18px;}
   .btn.approve{background:color-mix(in srgb, var(--green) 14%, transparent); border-color:color-mix(in srgb, var(--green) 45%, transparent); color:var(--green);}
@@ -655,11 +588,14 @@
   .btn.ghost:hover{color:var(--text); background:color-mix(in srgb, var(--text) 7%, transparent);}
   .btn:disabled{opacity:.4; cursor:default; transform:none; filter:none;}
 
-  /* quiet explanations */
+  /* quiet explanations; long ones fold to one line and open on click, Enter or Space */
   .hint{font-size:12px; color:var(--faint); margin-top:10px; line-height:1.6; padding:0; border:none;}
-  .hint.help{max-height:1.6em; padding-inline-end:20px;}
-  .hint.help::after{content:'+'; font-style:normal; color:var(--dim); top:-1px;}
+  .hint.help{max-height:1.6em; overflow:hidden; cursor:pointer; position:relative; padding-inline-end:20px;}
+  .hint.help::after{content:'+'; position:absolute; inset-inline-end:2px; top:-1px; font-size:12px; font-style:normal; color:var(--dim); opacity:.8;}
+  .hint.help.open{max-height:none;}
   .hint.help.open::after{content:'–';}
+  .hint.help:not(.open){-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent); mask-image:linear-gradient(90deg,#000 80%,transparent);}
+  [dir=rtl] .hint.help:not(.open){-webkit-mask-image:linear-gradient(270deg,#000 80%,transparent); mask-image:linear-gradient(270deg,#000 80%,transparent);}
 
   /* pipeline: a vertical timeline */
   #stages{display:flex; flex-direction:column; gap:0; position:relative;}
@@ -670,54 +606,51 @@
   .stage::after{content:''; position:absolute; inset-inline-start:21px; top:32px; bottom:-14px; width:2px; border-radius:2px;
     background:var(--border);}
   .stage:last-child::after{display:none;}
-  .stage .dot{position:absolute; inset-inline-start:15px; top:16px; width:14px; height:14px; margin:0; border-radius:50%;
+  .stage .dot{position:absolute; inset-inline-start:15px; top:16px; width:14px; height:14px; margin:0; flex:none; border-radius:50%;
     background:var(--panel-solid); border:2px solid var(--faint); box-shadow:none;}
   .stage.done::after{background:color-mix(in srgb, var(--green) 55%, transparent);}
   .stage.done .dot{background:var(--green); border-color:var(--green); box-shadow:0 0 0 4px color-mix(in srgb, var(--green) 18%, transparent);}
   .stage.running{background:color-mix(in srgb, var(--blue) 8%, transparent); border-color:color-mix(in srgb, var(--blue) 35%, transparent);}
-  .stage.running .dot{background:var(--blue); border-color:var(--blue); animation:ring 1.6s infinite;}
+  .stage.running .dot{background:var(--blue); border-color:var(--blue); color:var(--blue);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent); animation:ring 1.6s infinite;}
   .stage.waiting_gate{background:color-mix(in srgb, var(--amber) 8%, transparent); border-color:color-mix(in srgb, var(--amber) 35%, transparent);}
-  .stage.waiting_gate .dot{background:var(--amber); border-color:var(--amber); animation:ring 1.6s infinite;}
+  .stage.waiting_gate .dot{background:var(--amber); border-color:var(--amber); color:var(--amber);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 22%, transparent); animation:ring 1.6s infinite;}
   .stage.failed{background:color-mix(in srgb, var(--red) 8%, transparent); border-color:color-mix(in srgb, var(--red) 35%, transparent);}
-  .stage.failed .dot{background:var(--red); border-color:var(--red);}
+  .stage.failed .dot{background:var(--red); border-color:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 22%, transparent);}
+  .stage.interrupted{opacity:.85;}
   .stage.interrupted .dot{background:var(--amber); border-color:var(--amber);}
   .stage.skipped{opacity:.45;}
   .stage.done, .stage.interrupted{border-inline-start-color:transparent;}
   .stage.done:hover, .stage.interrupted:hover{border-inline-start-color:var(--border);}
-  .stage.running .dot{color:var(--blue);} .stage.waiting_gate .dot{color:var(--amber);}
   @keyframes ring{0%{box-shadow:0 0 0 0 currentColor;} 100%{box-shadow:0 0 0 10px transparent;}}
+  .stage .info{flex:1; min-width:0;}
   .stage .t{font-size:13.5px; font-weight:600;}
-  .stage .t b{color:var(--faint); font-weight:500; font-family:var(--mono); font-size:11px; margin-inline-start:6px;}
-  .stage .note{font-size:12.5px; color:var(--dim); margin-top:3px;}
-  .stage .meta{font-size:11px; color:var(--faint); line-height:1.75;}
+  .stage .t b{color:var(--faint); font-weight:500; font-family:var(--mono); font-size:11px; margin-inline-start:6px; opacity:.85;}
+  .stage .note{font-size:12.5px; color:var(--dim); margin-top:3px; overflow-wrap:anywhere; line-height:1.5;}
+  .stage .meta{text-align:end; font-size:11px; color:var(--faint); font-family:var(--mono); direction:ltr; white-space:nowrap; line-height:1.75; flex:none;}
+  .loops{font-size:11px; color:var(--amber); margin-inline-start:var(--space-xs);}
   .modelchip{display:inline-block; padding:1px 8px; border-radius:999px; font-size:10.5px; font-family:var(--mono); font-weight:500;
     border:1px solid var(--border); background:var(--panel2); color:var(--dim); margin-top:2px;}
   .resumebar{display:flex; align-items:center; gap:10px; padding:10px 14px; margin-bottom:12px; border-radius:var(--radius-md); font-size:12.5px;
     background:color-mix(in srgb, var(--amber) 10%, transparent); border:1px solid color-mix(in srgb, var(--amber) 35%, transparent);}
-  .task-line{font-size:14px; font-weight:500; margin-bottom:10px;}
+  .task-line{font-size:14px; font-weight:500; margin-bottom:10px; overflow-wrap:anywhere; line-height:1.6;}
 
-  /* gate */
-  #gateBox{border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  /* gate: the decision box on Overview, and a bar that is visible from every other tab */
+  #gateBox{display:none; border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);
     background:linear-gradient(135deg, color-mix(in srgb, var(--amber) 14%, transparent), transparent 60%), var(--panel);
     box-shadow:0 20px 60px -20px color-mix(in srgb, var(--amber) 40%, transparent), var(--shadow-md);}
-  #gateBox > h2{color:var(--amber);}
-  #gateBar{border-radius:var(--radius-md); backdrop-filter:var(--glass); -webkit-backdrop-filter:var(--glass);
-    background:color-mix(in srgb, var(--amber) 14%, var(--panel)); border:1px solid color-mix(in srgb, var(--amber) 40%, transparent); box-shadow:var(--shadow-md);}
+  #gateBox > h2{color:var(--amber); border-bottom-color:color-mix(in srgb, var(--amber) 25%, transparent);}
+  #gateBox .q{font-size:14.5px; margin-bottom:var(--space-sm); line-height:1.6;}
+  #gateBox textarea{width:100%; min-height:56px; margin-bottom:var(--space-sm);}
+  #gateBar{display:none; position:sticky; top:calc(var(--topbar) + 10px); z-index:40; margin:0 0 var(--space-md); padding:10px 14px;
+    border-radius:var(--radius-md); backdrop-filter:var(--glass); -webkit-backdrop-filter:var(--glass);
+    background:color-mix(in srgb, var(--amber) 14%, var(--panel)); border:1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    color:var(--text); align-items:center; gap:10px; box-shadow:var(--shadow-md); font-size:13.5px;}
+  #gateBar.on{display:flex;}
+  #gateBar b{color:var(--amber);}
 
-  /* code, docs, feeds */
-  pre,.md,textarea.code{background:var(--code-bg); border:1px solid var(--hairline); border-radius:var(--radius-md);}
-  .md{padding:20px 24px; line-height:1.7; font-size:13.5px;}
-  .md h1{font-size:20px; letter-spacing:-.3px;} .md h2{font-size:16px; color:var(--text);} .md h3{font-size:14px;}
-  .md h2::before{display:none;}
-  .md code{background:var(--panel2); border-color:var(--border);}
-  .md th{background:var(--panel2); color:var(--text);}
-  .md th,.md td{border-color:var(--border);}
-  #log, .feedbox, .cmdline{background:var(--code-bg); border:1px solid var(--hairline); border-radius:var(--radius-md);}
-  .cmdline{opacity:1; padding:6px 6px 6px 14px;}
-  .cmdline code{color:var(--faint); font-size:12px;}
-  .logrow, .act-row{border-bottom-color:var(--hairline);}
   #actFeed{max-height:calc(100vh - 260px); min-height:320px;}
-  .filelist{border-bottom-color:var(--hairline);}
 
   /* master-detail */
   .split{display:grid; grid-template-columns:260px minmax(0,1fr); gap:14px; align-items:start;}
@@ -731,59 +664,43 @@
   .listpane .empty{padding:16px; font-size:12px;}
   #artifactView:empty{display:flex; align-items:center; justify-content:center; min-height:300px; color:var(--faint); font-size:13px;}
   #artifactView:empty::before{content:attr(data-ph);}
-  @media (max-width:900px){ .split{grid-template-columns:1fr;} .listpane{position:static; max-height:none;}
-    .listpane .filelist{flex-direction:row; flex-wrap:wrap;} .listpane .filelist .btn{width:auto;} }
 
-  /* cards used across Runs / Settings / Usage */
+  /* The one card surface used across Runs / Settings / Usage; each card's
+     layout and states live with its component above. */
   .runcard, .provcard, .kpi, .proj-item, .runrow, .qrow, .estbox{background:var(--panel2); border:1px solid var(--border); border-radius:var(--radius-md);}
-  .runcard, .provcard{padding:16px; transition:border-color .2s var(--ease), transform .2s var(--ease), background-color .2s var(--ease);}
-  .runcard:hover, .provcard:hover{border-color:var(--border-strong); transform:translateY(-1px);}
-  .provcard.active{border-color:color-mix(in srgb, var(--accent) 60%, transparent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
-    background:color-mix(in srgb, var(--accent) 7%, var(--panel2));}
-  .provicon{border-radius:12px; background:var(--panel2); border:1px solid var(--border);}
-  .proj-item:hover{border-color:var(--border-strong);}
-  .proj-item.active{border-color:color-mix(in srgb, var(--green) 50%, transparent); background:color-mix(in srgb, var(--green) 7%, var(--panel2));}
-  .runrow:hover, .qrow:hover{border-color:var(--border-strong);}
-  .runcard .prog, .ubudget{background:var(--code-bg); border:none; height:6px;}
-  .runcard .prog i, .ubudget > i{background:var(--grad);}
-  .kpi{padding:14px 16px;}
-  .kpi .k{font-size:11.5px; color:var(--faint); font-weight:500;}
-  .kpi .v{font-size:24px; font-weight:700; letter-spacing:-.5px; font-family:var(--font); margin-top:4px;}
-  .uchart{border-bottom-color:var(--border); gap:4px;}
-  .uchart .b{background:color-mix(in srgb, var(--accent) 45%, transparent); border-radius:5px 5px 2px 2px;}
-  .uchart .b:hover, .uchart .b.today{background:var(--grad);}
-  .utable th{color:var(--faint); font-weight:500; text-transform:uppercase; font-size:10.5px; letter-spacing:.5px;}
-  .utable th,.utable td{border-bottom-color:var(--hairline); padding:9px 10px;}
-  .utable tr:hover td{background:color-mix(in srgb, var(--text) 3%, transparent);}
-  .ushare{background:var(--grad);}
-  .estbox{border-style:solid; padding:12px 14px;}
-  .estbig{color:var(--text); font-size:18px;}
 
-  /* flow editor */
-  #flowPalette, #inspectorPane{background:var(--panel2); border:1px solid var(--border); border-radius:var(--radius-md);}
-  #canvasWrap{border-radius:var(--radius-md); border-color:var(--border); background-color:var(--code-bg);
-    background-image:radial-gradient(color-mix(in srgb, var(--text) 10%, transparent) 1px, transparent 1px);}
-  .fnode{background:var(--panel-solid); border-color:var(--border); border-radius:18px; box-shadow:0 8px 24px var(--shadow);}
-  .fnode .cost{background:var(--panel-solid);}
-  .palbtn{background:var(--panel2); border-color:var(--border); border-radius:var(--radius-md);}
-  .palbtn.chip-active{border-color:color-mix(in srgb, var(--accent) 55%, transparent); background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--text);}
-  .port{background:var(--panel-solid);}
-
-  /* overlays */
+  /* overlays: the modals (API endpoint, Ctrl-K), the folder picker and toasts.
+     Opened by adding .open; nothing about them depends on the control that launched them. */
+  .modalwrap{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; padding:20px;}
+  .modalwrap.open{display:flex;}
+  #pickerBack{position:fixed; inset:0; z-index:50; display:none;}
+  #pickerBack.open{display:flex; align-items:center; justify-content:center;}
   .modalwrap, #pickerBack{background:rgba(5,6,10,.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);}
+  .modal{width:min(440px,100%); padding:18px 20px; display:flex; flex-direction:column; gap:10px; animation:modalin .16s ease;}
+  #picker{width:min(760px,94vw); max-height:82vh; display:flex; flex-direction:column;}
   .modal, #picker{background:color-mix(in srgb, var(--panel-solid) 88%, transparent); backdrop-filter:var(--glass); -webkit-backdrop-filter:var(--glass);
     border:1px solid var(--border-strong); border-radius:var(--radius-xl); box-shadow:0 40px 100px rgba(0,0,0,.55);}
-  #picker header{display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--hairline);
+  #picker .pickhead{display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--hairline);
     background:transparent; border-radius:var(--radius-xl) var(--radius-xl) 0 0;}
-  #picker header h1{font-size:14px; font-weight:600;}
-  #pickerPath{border-bottom-color:var(--hairline);}
-  #pickerFoot{border-top-color:var(--hairline);}
+  #picker .pickhead h2{font-size:14px; font-weight:600;}
+  #pickerPath{font-family:var(--mono); font-size:12px; direction:ltr; color:var(--dim);
+    padding:var(--space-sm) var(--space-lg); border-bottom:1px solid var(--hairline); overflow-wrap:anywhere;}
+  #pickerList{overflow:auto; padding:var(--space-sm); flex:1; min-height:220px;}
+  .pickrow{width:100%; border:0; background:none; color:inherit; font:inherit; text-align:start;
+    display:flex; align-items:center; gap:var(--space-sm); padding:var(--space-sm) var(--space-md); border-radius:var(--radius-sm); cursor:pointer; font-size:13.5px; transition:background-color .15s ease;}
   .pickrow:hover{background:color-mix(in srgb, var(--text) 6%, transparent);}
+  .pickrow .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:ltr; text-align:start;}
+  .pickrow .tags{display:flex; gap:var(--space-xs); flex:none;}
+  .pickrow .tag{font-size:10px; padding:1px 6px; border-radius:999px; border:1px solid var(--border); color:var(--dim);}
+  .pickrow .tag.hit{color:var(--green); border-color:var(--green);}
+  #pickerFoot{display:flex; gap:var(--space-sm); align-items:center; padding:var(--space-sm) var(--space-lg); border-top:1px solid var(--hairline); flex-wrap:wrap;}
+  #toasts{position:fixed; bottom:18px; inset-inline-start:18px; z-index:99; display:flex; flex-direction:column; gap:var(--space-sm);}
   .toast{background:color-mix(in srgb, var(--panel-solid) 90%, transparent); backdrop-filter:var(--glass); -webkit-backdrop-filter:var(--glass);
-    border:1px solid var(--border-strong); border-inline-start:3px solid var(--accent); border-radius:var(--radius-md);}
+    border:1px solid var(--border-strong); border-inline-start:3px solid var(--accent); border-radius:var(--radius-md);
+    padding:10px var(--space-md); font-size:13px; max-width:min(420px,90vw); box-shadow:var(--shadow-md); animation:slidein .2s ease;}
   .toast.ok{border-inline-start-color:var(--green);} .toast.err{border-inline-start-color:var(--red);}
+  @keyframes slidein{from{transform:translateY(10px); opacity:0;} to{transform:none; opacity:1;}}
 
-  .provgrid{align-items:start;}
   details.provmore{margin-top:14px;}
   details.provmore > summary{cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px; padding:10px 14px;
     border:1px dashed var(--border); border-radius:var(--radius-md); color:var(--dim); font-size:12.5px; font-weight:500;}
@@ -825,7 +742,7 @@
   body[data-run="running"] #page-overview > section.hero, body[data-run="waiting_gate"] #page-overview > section.hero{order:4;}
   body[data-run="running"] #runConsoleSec, body[data-run="waiting_gate"] #runConsoleSec{order:5;}
   body[data-run="running"] .cmd-input, body[data-run="waiting_gate"] .cmd-input{min-height:64px;}
-  .ov-context{display:grid; grid-template-columns:repeat(auto-fit, minmax(380px, 1fr)); gap:14px; align-items:start;}
+  .ov-context{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(380px,100%), 1fr)); gap:14px; align-items:start;}
   .ov-context #actFeedHome{max-height:280px;}
   details.logbox{margin-top:14px; border-top:1px solid var(--hairline); padding-top:12px;}
   details.logbox > summary{cursor:pointer; list-style:none; font-size:12.5px; font-weight:600; color:var(--dim); display:flex; align-items:center; gap:8px;}
@@ -867,12 +784,126 @@
   .cmdk-item.sel, .cmdk-item:hover{background:color-mix(in srgb, var(--text) 8%, transparent); color:var(--text);}
   .cmdk-item .grp{margin-inline-start:auto; font-size:11px; color:var(--faint);}
 
+  /* =====================================================================
+     Responsive system - designed for laptops first, not just big monitors.
+     The full breakpoint scale is documented with the tokens at the top.
+     ===================================================================== */
+
+  /* Inspector below the canvas: label/control pairs two per row. */
+  @media (max-width:1280px){
+    #canvasArea{grid-template-columns:minmax(0,1fr);}
+    #inspectorPane{position:static; max-height:none;}
+    .insgrid{grid-template-columns:max-content minmax(0,1fr) max-content minmax(0,1fr); align-items:center; gap:8px 12px;}
+    .insgrid label{margin-top:0;}
+    .insgrid > .row, .insgrid > .tag{min-width:0;}
+  }
+  @media (max-width:760px){ .insgrid{grid-template-columns:minmax(0,1fr);} }
+
+  /* Lists beside editors become a chip strip above them (the flow canvas needs
+     the width earliest, so Flows switches at 1440px, the others at 1180px). */
+  @media (max-width:1180px){
+    .split{grid-template-columns:minmax(0,1fr);}
+    .listpane{position:static; max-height:none; padding:12px 14px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;}
+    .listpane > h2{margin:0; padding:0;}
+    .listpane .filelist{flex-direction:row; flex-wrap:nowrap; overflow-x:auto; flex:1 1 320px; min-width:0; gap:4px; padding-bottom:2px;}
+    .listpane .filelist .btn{width:auto; white-space:nowrap; border:1px solid var(--border); background:var(--panel2);}
+    .listpane .listactions{margin:0; padding:0; border:none; flex:0 0 auto;}
+    .listpane > .hint{flex-basis:100%;}
+  }
+  @media (max-width:1440px){
+    #page-flows .split{grid-template-columns:minmax(0,1fr);}
+    #page-flows .listpane{position:static; max-height:none; padding:12px 14px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px;}
+    #page-flows .listpane > h2{margin:0; padding:0;}
+    #page-flows .listpane .filelist{flex-direction:row; flex-wrap:nowrap; overflow-x:auto; flex:1 1 320px; min-width:0; gap:4px; padding-bottom:2px;}
+    #page-flows .listpane .filelist .btn{width:auto; white-space:nowrap; border:1px solid var(--border); background:var(--panel2);}
+    #page-flows .listpane .listactions{margin:0; padding:0; border:none; flex:0 0 auto;}
+    #page-flows .listpane > .hint{flex-basis:100%;}
+  }
+  /* Thin, quiet scrollbars on the chip strips. */
+  .listpane .filelist::-webkit-scrollbar{height:6px;}
+  #page-flows .listpane #providerDetect{font-size:11.5px;}
+
+  /* Icon rail: the sidebar keeps every destination one click away in 76px,
+     and opens over the content (not pushing it) on hover or keyboard focus. */
+  @media (max-width:1280px) and (min-width:961px){
+    :root{--sidebar:84px;}
+    .sidebar{width:72px; transition:width .22s var(--ease), box-shadow .22s var(--ease); overflow:hidden; padding:12px 8px 8px;}
+    .sidebar:hover, .sidebar:focus-within{width:256px; box-shadow:0 30px 80px rgba(0,0,0,.55);}
+    .sidebar:not(:hover):not(:focus-within) .brand b,
+    .sidebar:not(:hover):not(:focus-within) .projbox,
+    .sidebar:not(:hover):not(:focus-within) .quickjump > :not(svg),
+    .sidebar:not(:hover):not(:focus-within) .navcap,
+    .sidebar:not(:hover):not(:focus-within) .tab > span,
+    .sidebar:not(:hover):not(:focus-within) .navlink > span,
+    .sidebar:not(:hover):not(:focus-within) #conn{display:none;}
+    .sidebar:not(:hover):not(:focus-within) .brand{justify-content:center; padding:2px 0;}
+    .sidebar:not(:hover):not(:focus-within) .quickjump{justify-content:center; padding:8px 0;}
+    .sidebar:not(:hover):not(:focus-within) .tab, .sidebar:not(:hover):not(:focus-within) .navlink{justify-content:center; padding:9px 0;}
+    .sidebar:not(:hover):not(:focus-within) .navgroup + .navgroup{border-top:1px solid var(--hairline); padding-top:10px;}
+    .sidebar:not(:hover):not(:focus-within) .sidefoot{flex-direction:column; gap:4px;}
+    .sidebar:not(:hover):not(:focus-within) .sidefoot .spacer{display:none;}
+    .sidebar .tab, .sidebar .navlink{white-space:nowrap;}
+    main{padding:22px clamp(14px, 2.4vw, 32px) 56px;}
+  }
+
+  /* Type and spacing scale down with the viewport. */
+  @media (max-width:1280px){
+    .pagehead{margin-bottom:16px;}
+    .pagehead h1{font-size:22px;}
+    .pagehead p{font-size:13px;}
+    .hero-head h1{font-size:26px; letter-spacing:-.7px;}
+    .hero-head{margin-bottom:16px;}
+    section{padding:14px 16px 16px; border-radius:16px;}
+    .groupcap{margin:20px 2px 10px;}
+    .cmd-input{min-height:80px; font-size:15px !important;}
+    .formgrid{grid-template-columns:140px minmax(0,1fr);}
+  }
+
+  /* Phone: one column everywhere, nothing wider than the screen, dialogs full width.
+     (After the 1280px block so its two-column .formgrid does not win here.) */
+  @media (max-width:640px){
+    .sidebar{position:static;}
+    main{padding:12px 12px 56px;}
+    .pagehead .actions, .cmd-tools{flex-wrap:wrap;}
+    .cmd-tools #btnRun{flex:1 1 100%;}
+    .kv, .insgrid, .formgrid{grid-template-columns:minmax(0,1fr);}
+    .kv label{white-space:normal;}
+    .modalwrap, #pickerBack.open{padding:8px;}
+    .modal, #picker{width:100%; max-height:calc(100vh - 16px); max-height:calc(100dvh - 16px);}
+    .modal{overflow:auto;}
+    .cmdk{margin-top:0; overflow:hidden;}
+    #toasts{inset-inline:12px; bottom:12px;}
+    .toast{max-width:100%;}
+  }
+
+  /* Short screens: tighter vertical rhythm so the sidebar never needs to scroll. */
+  @media (max-height:760px) and (min-width:961px){
+    .sidebar{gap:10px; padding-top:10px;}
+    .projbox{padding:8px; gap:6px;}
+    .projbox .fieldlbl{display:none;}
+    .sidenav{gap:8px;}
+    .navcap{padding-bottom:3px;}
+    .sidenav .tab, .sidenav .navlink{padding-top:5px; padding-bottom:5px;}
+    main{padding-top:18px;}
+  }
+
+  /* Touch screens: every control is at least 40px. min-height wins over the fixed
+     heights above; selectors repeat the most specific min-height/min-width rules. */
+  @media (pointer:coarse){
+    .btn, .iconbtn, .quickjump, .palbtn, .pickrow, .cmdk-item, .sidenav .tab, .sidenav .navlink, .sidefoot .iconbtn,
+    .listpane .filelist .btn, .seg .btn, .fnode .tool, .modalhead .x, .projpill > #projectSelect,
+    select, input[type=text], input[type=number], input[type=password], input[type=time], input[type=datetime-local],
+    .listactions input, .cmd-tools select, .cmd-opts select, summary, .checkline{min-height:40px;}
+    .iconbtn, .sidefoot .iconbtn, .fnode .tool, .modalhead .x{min-width:40px;}
+  }
+
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation:none !important; transition:none !important;}
   }
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main" data-i18n="skip_main"></a>
 
 <svg style="display:none" aria-hidden="true" focusable="false"><defs>
   <symbol id="ic-brain" viewBox="0 0 24 24"><path d="M12 4.5a3 3 0 0 0-3 3 2.5 2.5 0 0 0-1.4 4.4A2.5 2.5 0 0 0 9 16.4a3 3 0 0 0 3 3z"/><path d="M12 4.5a3 3 0 0 1 3 3 2.5 2.5 0 0 1 1.4 4.4A2.5 2.5 0 0 1 15 16.4a3 3 0 0 1-3 3z"/><path d="M12 4.5v15"/></symbol>
@@ -908,8 +939,8 @@
   <div class="projbox">
     <span class="fieldlbl" data-i18n="tt_project"></span>
     <span class="projpill">
-      <select id="projectSelect" title="project"></select>
-      <button class="iconbtn" id="btnPickTop">📂</button>
+      <select id="projectSelect" title="project" data-i18n-aria="tt_project"></select>
+      <button class="iconbtn" id="btnPickTop" data-i18n-aria="tt_pick"><span aria-hidden="true">📂</span></button>
     </span>
     <span class="projstate">
       <span class="badge" id="statusBadge">—</span>
@@ -917,38 +948,38 @@
     </span>
   </div>
   <button type="button" class="quickjump" id="btnQuick"><svg class="ic xs"><use href="#ic-search"/></svg><span data-i18n="cmdk_open"></span><span class="kbd">Ctrl K</span></button>
-  <nav class="sidenav" role="tablist" aria-orientation="vertical">
+  <nav class="sidenav" data-i18n-aria="nav_main">
     <div class="navgroup">
       <span class="navcap" data-i18n="nav_workspace"></span>
-      <button type="button" role="tab" aria-selected="true" class="tab active" data-page="overview"><svg class="ic"><use href="#ic-home"/></svg><span data-i18n="tab_overview"></span></button>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="runs"><svg class="ic"><use href="#ic-play"/></svg><span data-i18n="tab_runs"></span><span class="badge running" id="runsTabBadge" style="display:none; padding:0 7px"></span></button>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="activity"><svg class="ic"><use href="#ic-pulse"/></svg><span data-i18n="tab_activity"></span><span class="livedot" id="actDot" style="display:none"></span></button>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="artifacts"><svg class="ic"><use href="#ic-file"/></svg><span data-i18n="tab_artifacts"></span></button>
+      <button type="button" aria-current="page" class="tab active" data-page="overview"><svg class="ic" aria-hidden="true"><use href="#ic-home"/></svg><span data-i18n="tab_overview"></span></button>
+      <button type="button" class="tab" data-page="runs"><svg class="ic" aria-hidden="true"><use href="#ic-play"/></svg><span data-i18n="tab_runs"></span><span class="badge running" id="runsTabBadge" style="display:none; padding:0 7px"></span></button>
+      <button type="button" class="tab" data-page="activity"><svg class="ic" aria-hidden="true"><use href="#ic-pulse"/></svg><span data-i18n="tab_activity"></span><span class="livedot" id="actDot" style="display:none"></span></button>
+      <button type="button" class="tab" data-page="artifacts"><svg class="ic" aria-hidden="true"><use href="#ic-file"/></svg><span data-i18n="tab_artifacts"></span></button>
     </div>
     <div class="navgroup">
       <span class="navcap" data-i18n="nav_build"></span>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="flows"><svg class="ic"><use href="#ic-flow"/></svg><span data-i18n="tab_flows"></span></button>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="agents"><svg class="ic"><use href="#ic-brain"/></svg><span data-i18n="tab_agents"></span></button>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="skills"><svg class="ic"><use href="#ic-terminal"/></svg><span data-i18n="tab_skills"></span></button>
-      <a class="navlink" href="/studio"><svg class="ic"><use href="#ic-studio"/></svg><span data-i18n="nav_studio"></span></a>
+      <button type="button" class="tab" data-page="flows"><svg class="ic" aria-hidden="true"><use href="#ic-flow"/></svg><span data-i18n="tab_flows"></span></button>
+      <button type="button" class="tab" data-page="agents"><svg class="ic" aria-hidden="true"><use href="#ic-brain"/></svg><span data-i18n="tab_agents"></span></button>
+      <button type="button" class="tab" data-page="skills"><svg class="ic" aria-hidden="true"><use href="#ic-terminal"/></svg><span data-i18n="tab_skills"></span></button>
+      <a class="navlink" href="/studio"><svg class="ic" aria-hidden="true"><use href="#ic-studio"/></svg><span data-i18n="nav_studio"></span></a>
     </div>
     <div class="navgroup">
       <span class="navcap" data-i18n="nav_insights"></span>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="usage"><svg class="ic"><use href="#ic-chart"/></svg><span data-i18n="tab_usage"></span></button>
-      <button type="button" role="tab" aria-selected="false" class="tab" data-page="settings"><svg class="ic"><use href="#ic-gear"/></svg><span data-i18n="tab_settings"></span></button>
+      <button type="button" class="tab" data-page="usage"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg><span data-i18n="tab_usage"></span></button>
+      <button type="button" class="tab" data-page="settings"><svg class="ic" aria-hidden="true"><use href="#ic-gear"/></svg><span data-i18n="tab_settings"></span></button>
     </div>
   </nav>
   <div class="sidefoot">
     <span class="badge" id="conn">…</span>
     <span class="spacer"></span>
-    <button class="iconbtn" id="themeBtn" title="theme">🌙</button>
-    <button class="iconbtn" id="langBtn" title="language">EN</button>
-    <a class="iconbtn" id="lnkStudio" href="/studio" title="studio"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="12" r="2.6"/><path d="M8.6 12h6.8"/></svg></a>
+    <button class="iconbtn" id="themeBtn" title="theme" data-i18n-aria="tt_theme"><span aria-hidden="true">🌙</span></button>
+    <button class="iconbtn" id="langBtn" title="language" data-i18n-aria="tt_lang">EN</button>
+    <a class="iconbtn" id="lnkStudio" href="/studio" title="studio" data-i18n-aria="tt_studio"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="12" r="2.6"/><path d="M8.6 12h6.8"/></svg></a>
   </div>
 </aside>
-<main>
+<main id="main" tabindex="-1">
   <div id="gateBar" role="status">
-    <span>🔔</span><span id="gateBarText"></span><span class="spacer"></span>
+    <span aria-hidden="true">🔔</span><span id="gateBarText"></span><span class="spacer"></span>
     <button class="btn small primary" id="gateBarOpen" data-i18n="gate_open"></button>
   </div>
 
@@ -958,7 +989,7 @@
     <section id="gateBox">
       <h2 data-i18n="gate_title"></h2>
       <div class="q" id="gateQuestion"></div>
-      <textarea id="gateNote"></textarea>
+      <textarea id="gateNote" data-i18n-aria="aria_gate_note"></textarea>
       <div class="row">
         <button class="btn approve" id="btnApprove"></button>
         <button class="btn reject" id="btnReject"></button>
@@ -969,7 +1000,7 @@
     <section class="hero">
       <h2 data-i18n="run_title"></h2>
       <div class="cmd-inputwrap">
-        <textarea id="runTask" class="cmd-input" rows="3" spellcheck="false"></textarea>
+        <textarea id="runTask" class="cmd-input" rows="3" spellcheck="false" data-i18n-aria="hero_title"></textarea>
         <div class="cmd-assist">
           <button class="btn ghost small" id="btnRefine" data-i18n="refine_btn"></button>
           <button class="btn ghost small" id="btnOptimize" data-i18n="optimize_btn"></button>
@@ -978,7 +1009,7 @@
       </div>
       <!-- One row: what to run, how (folded), go. -->
       <div class="cmd-tools">
-        <select id="runFlow" aria-label="flow"></select>
+        <select id="runFlow" data-i18n-aria="field_flow"></select>
         <button type="button" class="btn ghost small optbtn" id="btnOpts" aria-expanded="false" aria-controls="cmdOpts">
           <svg class="ic xs"><use href="#ic-gear"/></svg><span data-i18n="opts_btn"></span><span class="optsum" id="optsSummary"></span>
         </button>
@@ -992,9 +1023,9 @@
         <button class="btn primary" id="btnRun" data-i18n="run_now"></button>
       </div>
       <div class="cmd-opts" id="cmdOpts">
-        <label class="opt"><span data-i18n="opt_executor"></span><select id="runProvider" aria-label="executor"></select></label>
+        <label class="opt"><span data-i18n="opt_executor"></span><select id="runProvider"></select></label>
         <label class="opt"><span data-i18n="opt_gates"></span>
-          <select id="runGates" aria-label="gates">
+          <select id="runGates">
             <option value="" data-i18n="gates_default"></option>
             <option value="terminal" data-i18n="gates_terminal"></option>
             <option value="dashboard" data-i18n="gates_dashboard"></option>
@@ -1002,14 +1033,14 @@
             <option value="ai" data-i18n="gates_ai"></option>
           </select></label>
         <label class="opt"><span data-i18n="opt_speed"></span>
-          <select id="runSpeed" aria-label="speed">
+          <select id="runSpeed">
             <option value="" data-i18n="speed_flow"></option>
             <option value="fast" data-i18n="speed_fast"></option>
             <option value="balanced" data-i18n="speed_balanced"></option>
             <option value="quality" data-i18n="speed_quality"></option>
           </select></label>
         <label class="opt"><span data-i18n="opt_size"></span>
-          <select id="runSize" aria-label="size">
+          <select id="runSize">
             <option value="" data-i18n="size_auto"></option>
             <option value="tiny" data-i18n="size_tiny"></option>
             <option value="small" data-i18n="size_small"></option>
@@ -1059,7 +1090,7 @@
         </section>
         <section id="inboxSec">
           <h2 data-i18n="inbox_title"></h2>
-          <textarea id="inboxText" style="width:100%; min-height:64px"></textarea>
+          <textarea id="inboxText" style="width:100%; min-height:64px" data-i18n-aria="inbox_title"></textarea>
           <div class="row" style="margin-top:8px">
             <span class="hint" style="border:none; padding:0; margin:0; flex:1" data-i18n="inbox_hint"></span>
             <button class="btn primary small" id="btnInbox"></button>
@@ -1097,22 +1128,22 @@
         <details class="boardform" style="margin-top:10px">
           <summary data-i18n="board_add_tasks"></summary>
           <div class="row" style="margin-top:8px">
-            <select id="qProject"></select>
-            <select id="qFlow"></select>
-            <select id="qGates">
+            <select id="qProject" data-i18n-aria="aria_project"></select>
+            <select id="qFlow" data-i18n-aria="field_flow"></select>
+            <select id="qGates" data-i18n-aria="opt_gates">
               <option value="dashboard" data-i18n="gates_dashboard"></option>
               <option value="auto" data-i18n="gates_auto"></option>
               <option value="ai" data-i18n="gates_ai"></option>
               <option value="terminal" data-i18n="gates_terminal"></option>
             </select>
-            <select id="qSpeed">
+            <select id="qSpeed" data-i18n-aria="opt_speed">
               <option value="" data-i18n="speed_flow"></option>
               <option value="fast" data-i18n="speed_fast"></option>
               <option value="balanced" data-i18n="speed_balanced"></option>
               <option value="quality" data-i18n="speed_quality"></option>
             </select>
           </div>
-          <textarea id="qTasks" rows="4" style="width:100%; margin-top:8px"></textarea>
+          <textarea id="qTasks" rows="4" style="width:100%; margin-top:8px" data-i18n-aria="aria_tasks"></textarea>
           <div class="row" style="margin-top:8px">
             <span class="hint" style="border:none; padding:0; margin:0" data-i18n="board_tasks_hint"></span>
             <span class="spacer"></span>
@@ -1126,31 +1157,31 @@
         <details class="boardform" style="margin-top:10px">
           <summary data-i18n="board_add_schedule"></summary>
           <div class="row" style="margin-top:8px">
-            <select id="sProject"></select>
-            <select id="sFlow"></select>
-            <select id="sGates">
+            <select id="sProject" data-i18n-aria="aria_project"></select>
+            <select id="sFlow" data-i18n-aria="field_flow"></select>
+            <select id="sGates" data-i18n-aria="opt_gates">
               <option value="auto" data-i18n="gates_auto"></option>
               <option value="ai" data-i18n="gates_ai"></option>
               <option value="dashboard" data-i18n="gates_dashboard"></option>
             </select>
-            <select id="sSpeed">
+            <select id="sSpeed" data-i18n-aria="opt_speed">
               <option value="" data-i18n="speed_flow"></option>
               <option value="fast" data-i18n="speed_fast"></option>
               <option value="balanced" data-i18n="speed_balanced"></option>
               <option value="quality" data-i18n="speed_quality"></option>
             </select>
           </div>
-          <textarea id="sTask" rows="2" style="width:100%; margin-top:8px"></textarea>
+          <textarea id="sTask" rows="2" style="width:100%; margin-top:8px" data-i18n-aria="aria_task"></textarea>
           <div class="row" style="margin-top:8px">
-            <select id="sKind">
+            <select id="sKind" data-i18n-aria="aria_repeat">
               <option value="daily" data-i18n="rep_daily"></option>
               <option value="weekly" data-i18n="rep_weekly"></option>
               <option value="hours" data-i18n="rep_hours"></option>
               <option value="once" data-i18n="rep_once"></option>
             </select>
-            <input type="time" id="sAt" value="09:00" style="direction:ltr">
-            <input type="number" id="sEvery" min="1" step="1" value="6" style="width:80px; direction:ltr; display:none">
-            <input type="datetime-local" id="sOnce" style="direction:ltr; display:none">
+            <input type="time" id="sAt" value="09:00" style="direction:ltr" data-i18n-aria="aria_time">
+            <input type="number" id="sEvery" min="1" step="1" value="6" style="width:80px; direction:ltr; display:none" data-i18n-aria="aria_every_hours">
+            <input type="datetime-local" id="sOnce" style="direction:ltr; display:none" data-i18n-aria="aria_once_at">
             <span id="sDays" style="display:none"></span>
             <span class="spacer"></span>
             <button class="btn primary" id="sAdd" data-i18n="board_add"></button>
@@ -1197,9 +1228,9 @@
     <section class="listpane"><h2 data-i18n="list_docs"></h2><div class="filelist" id="artifactList"></div></section>
     <section>
       <div class="row" style="margin-bottom:8px">
-        <button class="btn small" id="btnRawView" data-i18n="raw"></button>
+        <button class="btn small" id="btnRawView" data-i18n="raw" aria-pressed="false"></button>
         <span class="spacer"></span>
-        <label class="hint" style="border:none; padding:0; margin:0" data-i18n="export_as"></label>
+        <label class="hint" for="exportFormat" style="border:none; padding:0; margin:0" data-i18n="export_as"></label>
         <select id="exportFormat"></select>
         <button class="btn small" id="btnExport" data-i18n="export_btn"></button>
       </div>
@@ -1231,8 +1262,8 @@
     <section class="editor">
       <div class="edbar">
         <span class="seg">
-          <button class="btn small chip-active" id="btnViewCanvas" data-i18n="view_canvas"></button>
-          <button class="btn small" id="btnViewJson" data-i18n="view_json"></button>
+          <button class="btn small chip-active" id="btnViewCanvas" data-i18n="view_canvas" aria-pressed="true"></button>
+          <button class="btn small" id="btnViewJson" data-i18n="view_json" aria-pressed="false"></button>
         </span>
       </div>
 
@@ -1256,11 +1287,11 @@
         <div id="nodeInspector">
           <div class="inshead"><span data-i18n="ins_title"></span> <b id="insName"></b> <span class="tag" id="insId"></span></div>
           <div class="insgrid">
-            <label data-i18n="ins_model"></label>
+            <label for="insModel" data-i18n="ins_model"></label>
             <select id="insModel"></select>
-            <label data-i18n="ins_effort"></label>
+            <label for="insEffort" data-i18n="ins_effort"></label>
             <select id="insEffort"></select>
-            <label data-i18n="ins_gate"></label>
+            <label for="insGate" data-i18n="ins_gate"></label>
             <select id="insGate">
               <option value="default" data-i18n="gate_default"></option>
               <option value="auto">auto</option>
@@ -1268,12 +1299,12 @@
               <option value="dashboard">dashboard</option>
               <option value="terminal">terminal</option>
             </select>
-            <label data-i18n="ins_loops"></label>
+            <label for="insLoops" data-i18n="ins_loops"></label>
             <input type="number" id="insLoops" min="1" max="9" step="1">
-            <label data-i18n="ins_pre"></label>
-            <span class="row">
-              <button class="btn small" id="insCtx" data-i18n="ins_ctx"></button>
-              <button class="btn small" id="insChecks" data-i18n="ins_checks"></button>
+            <label id="lblInsPre" data-i18n="ins_pre"></label>
+            <span class="row" role="group" aria-labelledby="lblInsPre">
+              <button class="btn small" id="insCtx" data-i18n="ins_ctx" aria-pressed="false"></button>
+              <button class="btn small" id="insChecks" data-i18n="ins_checks" aria-pressed="false"></button>
             </span>
             <label data-i18n="ins_artifact"></label>
             <span class="tag" id="insArtifact"></span>
@@ -1288,10 +1319,10 @@
 
       <div id="jsonView" style="display:none">
         <div class="edbar-actions">
-          <input type="text" id="newFlowName" placeholder="new-flow-name">
+          <input type="text" id="newFlowName" placeholder="new-flow-name" data-i18n-aria="aria_new_flow">
           <button class="btn small primary" id="btnSaveFlow" data-i18n="save"></button>
         </div>
-        <textarea class="code" id="flowEditor" rows="24" spellcheck="false"></textarea>
+        <textarea class="code" id="flowEditor" rows="24" spellcheck="false" data-i18n-aria="aria_flow_json"></textarea>
       </div>
 
       <div class="hint" data-i18n="flows_hint"></div>
@@ -1307,7 +1338,7 @@
       <h2 data-i18n="list_roles"></h2>
       <div class="filelist" id="agentList"></div>
       <div class="listactions">
-        <input type="text" id="newAgentName" placeholder="new-role-name">
+        <input type="text" id="newAgentName" placeholder="new-role-name" data-i18n-aria="aria_new_role">
         <button class="btn small" id="btnNewAgent" data-i18n="new_agent"></button>
         <button class="btn small ghost" id="btnDeleteAgent" data-i18n="delete"></button>
       </div>
@@ -1315,9 +1346,9 @@
     <section class="editor">
       <div class="edbar">
         <span class="seg">
-          <button class="btn small chip-active" id="btnViewAgentVisual" data-i18n="view_visual"></button>
-          <button class="btn small" id="btnViewAgentForm" data-i18n="view_form"></button>
-          <button class="btn small" id="btnViewAgentRaw" data-i18n="view_raw"></button>
+          <button class="btn small chip-active" id="btnViewAgentVisual" data-i18n="view_visual" aria-pressed="true"></button>
+          <button class="btn small" id="btnViewAgentForm" data-i18n="view_form" aria-pressed="false"></button>
+          <button class="btn small" id="btnViewAgentRaw" data-i18n="view_raw" aria-pressed="false"></button>
         </span>
         <span class="spacer"></span>
         <button class="btn small primary" id="btnSaveAgent" data-i18n="save"></button>
@@ -1325,22 +1356,22 @@
 
       <div id="agentVisualView">
         <div class="palgroup" style="margin-bottom:10px">
-          <span class="cap" data-i18n="vis_preset"></span>
-          <div class="items" id="agPresets"></div>
+          <span class="cap" id="lblAgPresets" data-i18n="vis_preset"></span>
+          <div class="items" id="agPresets" role="group" aria-labelledby="lblAgPresets"></div>
         </div>
         <div class="formgrid">
-          <label data-i18n="ins_model"></label>
+          <label for="agvModel" data-i18n="ins_model"></label>
           <select id="agvModel"></select>
-          <label data-i18n="ins_effort"></label>
+          <label for="agvLevel" data-i18n="ins_effort"></label>
           <select id="agvLevel"></select>
-          <label data-i18n="ag_tools"></label>
-          <span class="row" id="agvTools"></span>
-          <label data-i18n="vis_artifact"></label>
+          <label id="lblAgvTools" data-i18n="ag_tools"></label>
+          <span class="row" id="agvTools" role="group" aria-labelledby="lblAgvTools"></span>
+          <label for="agvArtifact" data-i18n="vis_artifact"></label>
           <select id="agvArtifact"></select>
-          <label data-i18n="vis_sections"></label>
-          <span class="row" id="agvSections"></span>
-          <label data-i18n="vis_rules"></label>
-          <span class="row" id="agvRules"></span>
+          <label id="lblAgvSections" data-i18n="vis_sections"></label>
+          <span class="row" id="agvSections" role="group" aria-labelledby="lblAgvSections"></span>
+          <label id="lblAgvRules" data-i18n="vis_rules"></label>
+          <span class="row" id="agvRules" role="group" aria-labelledby="lblAgvRules"></span>
         </div>
         <div class="hint" data-i18n="vis_hint"></div>
         <pre id="agvPreview" style="margin-top:8px; max-height:320px"></pre>
@@ -1350,20 +1381,20 @@
         <div class="formgrid">
           <label data-i18n="ag_name"></label>
           <span class="tag" id="agName">—</span>
-          <label data-i18n="ag_desc"></label>
+          <label for="agDesc" data-i18n="ag_desc"></label>
           <input type="text" id="agDesc">
-          <label data-i18n="ins_model"></label>
+          <label for="agModel" data-i18n="ins_model"></label>
           <select id="agModel"></select>
-          <label data-i18n="ins_effort"></label>
+          <label for="agLevel" data-i18n="ins_effort"></label>
           <select id="agLevel"></select>
-          <label data-i18n="ag_tools"></label>
-          <span class="row" id="agTools"></span>
-          <label data-i18n="ag_prompt"></label>
+          <label id="lblAgTools" data-i18n="ag_tools"></label>
+          <span class="row" id="agTools" role="group" aria-labelledby="lblAgTools"></span>
+          <label for="agPrompt" data-i18n="ag_prompt"></label>
           <textarea class="code" id="agPrompt" rows="16" spellcheck="false"></textarea>
         </div>
       </div>
 
-      <textarea class="code" id="agentEditor" rows="24" spellcheck="false" style="display:none"></textarea>
+      <textarea class="code" id="agentEditor" rows="24" spellcheck="false" style="display:none" data-i18n-aria="aria_agent_file"></textarea>
       <div class="hint" data-i18n="agents_hint"></div>
     </section>
     </div>
@@ -1377,16 +1408,16 @@
       <h2 data-i18n="list_skills"></h2>
       <div class="filelist" id="skillList"></div>
       <div class="listactions">
-        <input type="text" id="newSkillName" placeholder="new-skill-name">
+        <input type="text" id="newSkillName" placeholder="new-skill-name" data-i18n-aria="aria_new_skill">
         <button class="btn small" id="btnNewSkill" data-i18n="new_skill"></button>
       </div>
     </section>
     <section class="editor">
       <div class="edbar">
         <span class="seg">
-          <button class="btn small chip-active" id="btnViewSkillVisual" data-i18n="view_visual"></button>
-          <button class="btn small" id="btnViewSkillForm" data-i18n="view_form"></button>
-          <button class="btn small" id="btnViewSkillRaw" data-i18n="view_raw"></button>
+          <button class="btn small chip-active" id="btnViewSkillVisual" data-i18n="view_visual" aria-pressed="true"></button>
+          <button class="btn small" id="btnViewSkillForm" data-i18n="view_form" aria-pressed="false"></button>
+          <button class="btn small" id="btnViewSkillRaw" data-i18n="view_raw" aria-pressed="false"></button>
         </span>
         <span class="spacer"></span>
         <button class="btn small primary" id="btnSaveSkill" data-i18n="save"></button>
@@ -1394,20 +1425,20 @@
 
       <div id="skillVisualView">
         <div class="palgroup" style="margin-bottom:10px">
-          <span class="cap" data-i18n="vis_preset"></span>
-          <div class="items" id="skPresets"></div>
+          <span class="cap" id="lblSkPresets" data-i18n="vis_preset"></span>
+          <div class="items" id="skPresets" role="group" aria-labelledby="lblSkPresets"></div>
         </div>
         <div class="formgrid">
-          <label data-i18n="vis_flow"></label>
+          <label for="skvFlow" data-i18n="vis_flow"></label>
           <select id="skvFlow"></select>
-          <label data-i18n="gate_mode"></label>
+          <label for="skvGate" data-i18n="gate_mode"></label>
           <select id="skvGate">
             <option value="terminal">terminal</option>
             <option value="dashboard">dashboard</option>
             <option value="auto">auto</option>
           </select>
-          <label data-i18n="vis_rules"></label>
-          <span class="row" id="skvRules"></span>
+          <label id="lblSkvRules" data-i18n="vis_rules"></label>
+          <span class="row" id="skvRules" role="group" aria-labelledby="lblSkvRules"></span>
         </div>
         <div class="hint" data-i18n="vis_hint"></div>
         <pre id="skvPreview" style="margin-top:8px; max-height:320px"></pre>
@@ -1417,14 +1448,14 @@
         <div class="formgrid">
           <label data-i18n="ag_name"></label>
           <span class="tag" id="skName">—</span>
-          <label data-i18n="ag_desc"></label>
+          <label for="skDesc" data-i18n="ag_desc"></label>
           <input type="text" id="skDesc">
-          <label data-i18n="sk_body"></label>
+          <label for="skBody" data-i18n="sk_body"></label>
           <textarea class="code" id="skBody" rows="18" spellcheck="false"></textarea>
         </div>
       </div>
 
-      <textarea class="code" id="skillEditor" rows="24" spellcheck="false" style="display:none"></textarea>
+      <textarea class="code" id="skillEditor" rows="24" spellcheck="false" style="display:none" data-i18n-aria="aria_skill_file"></textarea>
       <div class="hint" data-i18n="skills_hint"></div>
     </section>
     </div>
@@ -1434,11 +1465,11 @@
   <div class="page" id="page-usage">
     <div class="pagehead"><div class="ttl"><h1 data-i18n="tab_usage"></h1><p data-i18n="sub_usage"></p></div>
       <div class="actions">
-        <button class="iconbtn" id="useMonthPrev" title="‹">‹</button>
-        <select id="useMonth"></select>
-        <button class="iconbtn" id="useMonthNext" title="›">›</button>
-        <select id="useTool"><option value="" data-i18n="usage_all_tools"></option></select>
-        <select id="useScope">
+        <button class="iconbtn" id="useMonthPrev" data-i18n-aria="usage_prev_month"><span aria-hidden="true">‹</span></button>
+        <select id="useMonth" data-i18n-aria="aria_month"></select>
+        <button class="iconbtn" id="useMonthNext" data-i18n-aria="usage_next_month"><span aria-hidden="true">›</span></button>
+        <select id="useTool" data-i18n-aria="aria_tool"><option value="" data-i18n="usage_all_tools"></option></select>
+        <select id="useScope" data-i18n-aria="aria_scope">
           <option value="all" data-i18n="usage_scope_all"></option>
           <option value="flowforge" data-i18n="usage_scope_ff"></option>
         </select>
@@ -1467,12 +1498,12 @@
     <section>
       <h2><span data-i18n="usage_tasks"></span><span class="spacer"></span>
         <span class="h2tools">
-          <select id="useSort">
+          <select id="useSort" data-i18n-aria="aria_sort">
             <option value="new" data-i18n="usage_sort_new"></option>
             <option value="cost" data-i18n="usage_sort_cost"></option>
           </select>
           <button class="btn small" id="useCsv" data-i18n="usage_csv"></button>
-          <select id="useReportFmt">
+          <select id="useReportFmt" data-i18n-aria="aria_report_fmt">
             <option value="md">Markdown</option><option value="pdf">PDF</option>
             <option value="docx">Word</option><option value="xlsx">Excel</option><option value="html">HTML</option>
           </select>
@@ -1485,9 +1516,9 @@
     <section>
       <h2 data-i18n="usage_rates"></h2>
       <div class="kv">
-        <label data-i18n="usage_usd_per_acu"></label>
+        <label for="useUsdAcu" data-i18n="usage_usd_per_acu"></label>
         <input type="number" id="useUsdAcu" step="0.01" min="0" style="width:140px; direction:ltr" placeholder="2.25">
-        <label data-i18n="usage_budget"></label>
+        <label for="useBudgetIn" data-i18n="usage_budget"></label>
         <input type="number" id="useBudgetIn" step="1" min="0" style="width:140px; direction:ltr" placeholder="100">
       </div>
       <div class="hint" id="useUsdNote"></div>
@@ -1513,7 +1544,7 @@
       <div id="projList"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn primary" id="btnPickProj" data-i18n="pick_project"></button>
-        <input type="text" id="newProjPath" style="flex:1; min-width:220px; direction:ltr" placeholder="C:\path\to\project">
+        <input type="text" id="newProjPath" style="flex:1; min-width:220px; direction:ltr" placeholder="C:\path\to\project" data-i18n-aria="aria_proj_path">
         <button class="btn" id="btnAddProj" data-i18n="add_project"></button>
         <button class="btn ghost" id="btnCleanProj" data-i18n="clean_missing"></button>
       </div>
@@ -1533,7 +1564,7 @@
       <section>
         <h2 data-i18n="settings_project"></h2>
         <div class="kv">
-          <label data-i18n="gate_mode"></label>
+          <label for="setGateMode" data-i18n="gate_mode"></label>
           <select id="setGateMode">
             <option value="default" data-i18n="gate_default"></option>
             <option value="terminal">terminal</option>
@@ -1541,7 +1572,7 @@
             <option value="auto">auto</option>
             <option value="ai" data-i18n="gates_ai_short"></option>
           </select>
-          <label data-i18n="refine_provider"></label>
+          <label for="setRefineProvider" data-i18n="refine_provider"></label>
           <span class="row" style="flex-wrap:nowrap">
             <select id="setRefineProvider" style="flex:1">
               <option value="auto" data-i18n="refine_auto"></option>
@@ -1555,11 +1586,11 @@
       <section>
         <h2 data-i18n="settings_ui"></h2>
         <div class="kv">
-          <label data-i18n="lang"></label>
+          <label for="setLang" data-i18n="lang"></label>
           <select id="setLang"><option value="ar">العربية</option><option value="en">English</option></select>
-          <label data-i18n="theme"></label>
+          <label for="setTheme" data-i18n="theme"></label>
           <select id="setTheme"><option value="dark" data-i18n="theme_dark"></option><option value="light" data-i18n="theme_light"></option></select>
-          <label data-i18n="poll"></label>
+          <label for="setPoll" data-i18n="poll"></label>
           <input type="number" id="setPoll" min="500" step="250" style="width:120px">
         </div>
         <div class="hint" data-i18n="settings_ui_hint"></div>
@@ -1568,15 +1599,15 @@
   </div>
 </main>
 </div>
-<div id="pickerBack">
+<div id="pickerBack" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
   <div id="picker">
-    <header>
-      <h1 data-i18n="pick_title"></h1>
+    <div class="pickhead">
+      <h2 id="pickerTitle" data-i18n="pick_title"></h2>
       <span class="spacer"></span>
       <button class="iconbtn" id="pickerUp" data-i18n="pick_up"></button>
       <button class="iconbtn" id="pickerRoots" data-i18n="pick_roots"></button>
-      <button class="iconbtn" id="pickerClose">✕</button>
-    </header>
+      <button class="iconbtn" id="pickerClose" data-i18n-aria="close"><span aria-hidden="true">✕</span></button>
+    </div>
     <div id="pickerPath">—</div>
     <div id="pickerList"></div>
     <div id="pickerFoot">
@@ -1585,15 +1616,15 @@
     </div>
   </div>
 </div>
-<div class="modalwrap" id="apiModal" role="dialog" aria-modal="true">
+<div class="modalwrap" id="apiModal" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
   <div class="modal">
-    <div class="modalhead"><div class="provicon">⌁</div><span data-i18n="refine_http"></span>
-      <button class="x" id="apiModalX" title="close">✕</button></div>
-    <div class="kv"><label data-i18n="refine_base"></label>
+    <div class="modalhead"><div class="provicon" aria-hidden="true">⌁</div><span id="apiModalTitle" data-i18n="refine_http"></span>
+      <button class="x" id="apiModalX" title="close" data-i18n-aria="close"><span aria-hidden="true">✕</span></button></div>
+    <div class="kv"><label for="setRefineBase" data-i18n="refine_base"></label>
       <input type="text" id="setRefineBase" style="direction:ltr" placeholder="https://api.groq.com/openai/v1"></div>
-    <div class="kv"><label data-i18n="refine_model"></label>
+    <div class="kv"><label for="setRefineModel" data-i18n="refine_model"></label>
       <input type="text" id="setRefineModel" style="direction:ltr" placeholder="llama-3.3-70b-versatile"></div>
-    <div class="kv"><label data-i18n="refine_key"></label>
+    <div class="kv"><label for="setRefineKey" data-i18n="refine_key"></label>
       <input type="password" id="setRefineKey" style="direction:ltr" placeholder="gsk_..."></div>
     <label class="checkline"><input type="checkbox" id="setRefineHttpOnly"> <span data-i18n="refine_http_only"></span></label>
     <div class="mrow">
@@ -1602,10 +1633,11 @@
     </div>
   </div>
 </div>
-<div class="modalwrap" id="cmdk" role="dialog" aria-modal="true">
+<div class="modalwrap" id="cmdk" role="dialog" aria-modal="true" data-i18n-aria="cmdk_open">
   <div class="modal cmdk">
-    <input type="text" id="cmdkInput" autocomplete="off" spellcheck="false">
-    <div id="cmdkList"></div>
+    <input type="text" id="cmdkInput" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false"
+      aria-controls="cmdkList" aria-autocomplete="list" data-i18n-aria="cmdk_ph">
+    <div id="cmdkList" role="listbox" data-i18n-aria="cmdk_open"></div>
   </div>
 </div>
 <div id="toasts" role="status" aria-live="polite"></div>
@@ -1838,6 +1870,12 @@ const I18N = {
     grp_current_run: 'Current run', grp_recent: 'Recent', grp_new_run: 'Queue another run',
     prov_more: 'Other supported tools, not on this machine ({n})', list_flows: 'Flows', grp_breakdown: 'Breakdown', grp_tasks: 'Tasks',
     grp_setup: 'Setup', grp_workspace: 'Workspace', grp_executors: 'Executors', grp_prefs: 'Preferences',
+    skip_main: 'Skip to content', nav_main: 'Main navigation', usage_prev_month: 'Previous month', usage_next_month: 'Next month',
+    aria_project: 'Project', aria_tasks: 'Tasks, one per line', aria_task: 'Task', aria_repeat: 'Repeat', aria_time: 'Time',
+    aria_every_hours: 'Every how many hours', aria_once_at: 'Date and time', aria_month: 'Month', aria_tool: 'Tool',
+    aria_scope: 'Sessions to count', aria_sort: 'Sort', aria_report_fmt: 'Report format', aria_gate_note: 'Note to the agent (optional)',
+    aria_proj_path: 'Project folder path', aria_new_flow: 'New flow name', aria_new_role: 'New role name', aria_new_skill: 'New skill name',
+    aria_flow_json: 'Flow file (JSON)', aria_agent_file: 'Role file', aria_skill_file: 'Skill file',
     provider_flow_filtered: 'Flow list filtered by the selected executor',
   },
   ar: {
@@ -2065,6 +2103,12 @@ const I18N = {
     grp_current_run: 'التشغيل الحالي', grp_recent: 'الأخير', grp_new_run: 'شغّل حاجة تانية',
     prov_more: 'أدوات تانية مدعومة، مش متسطّبة على الجهاز ({n})', list_flows: 'الفلوز', grp_breakdown: 'التفاصيل', grp_tasks: 'التاسكات',
     grp_setup: 'الإعداد', grp_workspace: 'مساحة العمل', grp_executors: 'المنفّذين', grp_prefs: 'التفضيلات',
+    skip_main: 'روح للمحتوى', nav_main: 'التنقل الرئيسي', usage_prev_month: 'الشهر اللي فات', usage_next_month: 'الشهر الجاي',
+    aria_project: 'المشروع', aria_tasks: 'التاسكات، تاسك في كل سطر', aria_task: 'التاسك', aria_repeat: 'التكرار', aria_time: 'الوقت',
+    aria_every_hours: 'كل كام ساعة', aria_once_at: 'التاريخ والوقت', aria_month: 'الشهر', aria_tool: 'الأداة',
+    aria_scope: 'الجلسات اللي تتحسب', aria_sort: 'الترتيب', aria_report_fmt: 'صيغة التقرير', aria_gate_note: 'ملاحظة للوكيل (اختياري)',
+    aria_proj_path: 'مسار مجلد المشروع', aria_new_flow: 'اسم الفلو الجديد', aria_new_role: 'اسم الدور الجديد', aria_new_skill: 'اسم المهارة الجديدة',
+    aria_flow_json: 'ملف الفلو (JSON)', aria_agent_file: 'ملف الدور', aria_skill_file: 'ملف المهارة',
     provider_flow_filtered: 'قايمة الفلوز مفلترة حسب المنفّذ المختار',
   },
 };
@@ -2160,12 +2204,69 @@ function projectLabel(p, all) {
   return dup && parts.length > 1 ? `${parts[parts.length - 2]}/${name}` : name;
 }
 
+/* ============================== keyboard & dialogs ============================== */
+const FOCUSABLE = ['button', 'a[href]', 'input', 'select', 'textarea', '[tabindex]']
+  .map((s) => s + ':not([disabled]):not([tabindex="-1"])').join(', ');
+const focusables = (el) => [...el.querySelectorAll(FOCUSABLE)].filter((x) => x.getClientRects().length);
+// Lists that are rebuilt (polling, re-renders) keep keyboard focus: note which
+// control had it before the rebuild, then focus the same control again after.
+function focusRestorer(box) {
+  const a = document.activeElement;
+  if (!a || a === document.body || !box.contains(a)) return () => {};
+  const key = a.id ? '#' + CSS.escape(a.id)
+    : a.dataset.fkey ? `[data-fkey="${CSS.escape(a.dataset.fkey)}"]`
+    : a.dataset.act && a.dataset.id ? `[data-act="${CSS.escape(a.dataset.act)}"][data-id="${CSS.escape(a.dataset.id)}"]` : '';
+  const idx = [...box.querySelectorAll(FOCUSABLE)].indexOf(a);
+  return () => {
+    if (box.contains(document.activeElement)) return;
+    const back = (key && box.querySelector(key)) || [...box.querySelectorAll(FOCUSABLE)][idx];
+    if (back) back.focus();
+  };
+}
+// Toggle buttons show their state to the eye (chip-active) and to assistive tech (aria-pressed).
+function setPressed(el, on) {
+  el.classList.toggle('chip-active', !!on);
+  el.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+// The folder picker, the API modal and Ctrl-K behave as one kind of dialog:
+// focus moves in, everything behind is inert, Tab stays inside, Escape closes
+// the top one and focus returns to the control that opened it.
+const overlays = [];
+function openOverlay(el, focusEl) {
+  if (overlays.some((o) => o.el === el)) return;
+  const opener = document.activeElement;
+  overlays.forEach((o) => { o.el.inert = true; });
+  overlays.push({ el, opener, openerId: (opener && opener.id) || '' });
+  document.querySelector('.shell').inert = true;
+  el.classList.add('open');
+  const target = focusEl || focusables(el)[0];
+  if (target) target.focus();
+}
+function closeOverlay(el) {
+  el.classList.remove('open');
+  const i = overlays.findIndex((o) => o.el === el);
+  if (i < 0) return;
+  const [o] = overlays.splice(i, 1);
+  el.inert = false;
+  const top = overlays[overlays.length - 1];
+  if (top) top.el.inert = false; else document.querySelector('.shell').inert = false;
+  // The opener may have been re-rendered while the dialog was open: find it again by id.
+  const back = (o.openerId && $(o.openerId)) || (o.opener && o.opener.isConnected ? o.opener : null);
+  if (back && back.focus) back.focus();
+}
+
 /* ============================== language & theme ============================== */
 function applyLang() {
   document.documentElement.lang = LANG;
   document.documentElement.dir = LANG === 'ar' ? 'rtl' : 'ltr';
   $('langBtn').textContent = LANG === 'ar' ? 'EN' : 'ع';
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  // The icon rail shows no labels: every destination keeps its name as a tooltip.
+  document.querySelectorAll('nav .tab, nav .navlink').forEach((el) => {
+    const l = el.querySelector('[data-i18n]'); if (l) { el.title = l.textContent; el.setAttribute('aria-label', l.textContent); }
+  });
+  // Controls without a visible label (icon buttons, bare inputs, dialogs) get a translated name.
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
   // In the options panel each field already has its label: drop "Speed: " etc. from the choices.
   document.querySelectorAll('#cmdOpts option').forEach((o) => { o.textContent = o.textContent.replace(/^[^:]{1,20}:\s*/, ''); });
   foldLongHints();
@@ -2203,7 +2304,7 @@ $('setLang').onchange = () => { LANG = $('setLang').value; localStorage.setItem(
 let THEME = localStorage.getItem('ff.theme') || 'dark';
 function applyTheme() {
   document.documentElement.dataset.theme = THEME;
-  $('themeBtn').textContent = THEME === 'dark' ? '🌙' : '☀️';
+  $('themeBtn').innerHTML = `<span aria-hidden="true">${THEME === 'dark' ? '🌙' : '☀️'}</span>`;
   $('setTheme').value = THEME;
 }
 $('themeBtn').onclick = () => { THEME = THEME === 'dark' ? 'light' : 'dark'; localStorage.setItem('ff.theme', THEME); applyTheme(); };
@@ -2212,8 +2313,8 @@ $('setTheme').onchange = () => { THEME = $('setTheme').value; localStorage.setIt
 /* ============================== tabs ============================== */
 let activeTab = 'overview';
 document.querySelectorAll('nav .tab').forEach((tab) => tab.onclick = () => {
-  document.querySelectorAll('nav .tab').forEach((x) => { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
-  tab.setAttribute('aria-selected', 'true');
+  document.querySelectorAll('nav .tab').forEach((x) => { x.classList.remove('active'); x.removeAttribute('aria-current'); });
+  tab.setAttribute('aria-current', 'page');
   document.querySelectorAll('.page').forEach((x) => x.classList.remove('active'));
   tab.classList.add('active');
   activeTab = tab.dataset.page;
@@ -2223,7 +2324,7 @@ document.querySelectorAll('nav .tab').forEach((tab) => tab.onclick = () => {
   if (activeTab === 'skills') { loadSkills(); renderSkillVisual(); }
   if (activeTab === 'activity') { fetchActivity(); fetchChanges(); }
   if (activeTab === 'usage') loadUsage(false);
-  if (activeTab === 'settings') loadProviders(false);
+  if (activeTab === 'settings') { loadProviders(false); if (lastData) renderProjectSettings(lastData); }
   if (activeTab === 'runs') loadBoard();
   if (location.hash !== `#${activeTab}`) history.replaceState(null, '', `#${activeTab}`);
   window.scrollTo({ top: 0 });
@@ -2323,6 +2424,7 @@ function renderHeader(d) {
     badge.textContent = t('fs_' + s.status) || s.status;
     badge.className = 'badge ' + (s.status || '');
     $('flowBadge').textContent = (LANG === 'ar' && s.flowTitleAr) ? s.flowTitleAr : (s.flowTitle || s.flow || '');
+    $('flowBadge').title = $('flowBadge').textContent;
   }
   syncSelect($('projectSelect'), d.projects || [], d.project || undefined, (p) => projectLabel(p, d.projects || []));
   // A finished run announces itself once.
@@ -2594,13 +2696,20 @@ function renderBoardSignals(d) {
 }
 let lastOtherGate = null;
 
-// Long explanations fold to one line until clicked.
+// Long explanations fold to one line until clicked (or opened with Enter/Space).
 function foldLongHints() {
   document.querySelectorAll('.hint').forEach((h) => {
     if (h.classList.contains('help') || h.querySelector('input,select,button,a') || h.closest('#estBox')) return;
     if ((h.textContent || '').trim().length < 110) return;
     h.classList.add('help');
-    h.onclick = (ev) => { if (ev.target.tagName !== 'A') h.classList.toggle('open'); };
+    // Inside a "how it works" box the hint is never folded: no click target, no tab stop.
+    if (h.closest('details.helpbox')) return;
+    h.tabIndex = 0;
+    h.setAttribute('role', 'button');
+    h.setAttribute('aria-expanded', 'false');
+    const toggle = () => h.setAttribute('aria-expanded', h.classList.toggle('open') ? 'true' : 'false');
+    h.onclick = (ev) => { if (ev.target.tagName !== 'A') toggle(); };
+    h.onkeydown = (ev) => { if (ev.target === h && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); toggle(); } };
   });
 }
 
@@ -3370,15 +3479,23 @@ $('btnCloseDiff').onclick = () => { $('diffView').style.display = 'none'; };
 let rawMode = false;
 function renderArtifactList(list) {
   const el = $('artifactList');
+  // Called on every poll: rebuild only when something shown changed, so keyboard focus survives.
+  const sig = JSON.stringify(list.map((a) => [a.name, a.size])) + '|' + selectedArtifact + '|' + LANG;
+  if (el.dataset.sig === sig) return;
+  el.dataset.sig = sig;
+  const restore = focusRestorer(el);
   el.innerHTML = '';
   if (!list.length) { el.innerHTML = `<span class="empty">${esc(t('select_artifact'))}</span>`; return; }
   list.forEach((a) => {
     const b = document.createElement('button');
     b.className = 'btn small' + (a.name === selectedArtifact ? ' chip-active' : '');
+    if (a.name === selectedArtifact) b.setAttribute('aria-current', 'true');
+    b.dataset.fkey = 'art:' + a.name;
     b.textContent = `${a.name} (${(a.size / 1024).toFixed(1)}KB)`;
     b.onclick = () => viewArtifact(a.name);
     el.appendChild(b);
   });
+  restore();
 }
 async function viewArtifact(name, silent) {
   selectedArtifact = name;
@@ -3393,7 +3510,7 @@ $('btnRawView').onclick = () => {
   rawMode = !rawMode;
   $('artifactView').style.display = rawMode ? 'none' : 'block';
   $('artifactRaw').style.display = rawMode ? 'block' : 'none';
-  $('btnRawView').classList.toggle('chip-active', rawMode);
+  setPressed($('btnRawView'), rawMode);
 };
 
 /* Export: the format list comes from the server registry, so a new format in
@@ -3431,20 +3548,33 @@ function makeEditor(cfg) {
   const state = { current: null };
   async function load() {
     const names = await cfg.list();
-    const el = $(cfg.listEl); el.innerHTML = '';
+    const el = $(cfg.listEl);
+    const restore = focusRestorer(el);
+    el.innerHTML = '';
+    let pick = null;
     names.forEach((f) => {
       const b = document.createElement('button');
       b.className = 'btn small' + (f === state.current ? ' chip-active' : '');
+      if (f === state.current) b.setAttribute('aria-current', 'true');
+      b.dataset.fkey = 'item:' + f;
       b.textContent = f;
       b.onclick = async () => {
         state.current = f;
         const r = await api(cfg.getUrl + encodeURIComponent(f));
         $(cfg.editorEl).value = r.content;
         if (cfg.onLoad) cfg.onLoad(r.content);
-        load();
+        await load();
+        // In the chip-strip layout the active item may sit off-screen: bring it in.
+        const act = el.querySelector('.chip-active');
+        if (act && el.scrollWidth > el.clientWidth) el.scrollLeft = act.offsetLeft - el.clientWidth / 2 + act.offsetWidth / 2;
       };
+      if (!pick && (f === cfg.prefer || f.replace(/\.md$/, '') === cfg.prefer)) pick = b;
       el.appendChild(b);
     });
+    restore();
+    // Never open on an empty editor: show something real (the preferred item,
+    // else the first) so the page explains itself on the first visit.
+    if (!state.current && names.length) (pick || el.firstElementChild).click();
   }
   async function save() {
     if (!state.current) { toast(t(cfg.pickMsg), 'err'); return; }
@@ -3461,7 +3591,7 @@ function makeEditor(cfg) {
 const flowsEd = makeEditor({
   listEl: 'flowList', editorEl: 'flowEditor',
   list: async () => (lastData ? lastData.flows : (await api('/api/state')).flows) || [],
-  getUrl: '/api/flow?name=', postUrl: '/api/flow', pickMsg: 'pick_flow_first',
+  getUrl: '/api/flow?name=', postUrl: '/api/flow', pickMsg: 'pick_flow_first', prefer: 'task',
   onLoad: (content) => { try { flowToGraph(JSON.parse(content)); } catch { /* JSON view will report it */ } },
   validate: (v) => { try { JSON.parse(v); return null; } catch (e) { return t('invalid_json') + ': ' + e.message; } },
 });
@@ -3988,7 +4118,8 @@ function annotateCanvasCost() {
   canvasCostTimer = setTimeout(async () => {
     if (!G.nodes.length || activeTab !== 'flows') return;
     let flowDef;
-    try { flowDef = graphToFlow(flowsEd.state.current || 'canvas'); } catch { return; }
+    try { flowDef = graphToFlow(flowsEd.state.current || 'canvas').flow; } catch { return; }
+    if (!flowDef) return; // graphToFlow answers { error } for a canvas that is not a valid flow yet
     const sig = JSON.stringify(flowDef.stages.map((s) => [s.id, s.agent, s.model, s.effort, s.onFail]));
     const apply = (est) => {
       const by = Object.fromEntries(((est.pipeline && est.pipeline.stages) || []).map((s) => [s.id, s]));
@@ -4019,6 +4150,7 @@ function annotateCanvasCost() {
 let lastCanvasEst = null;
 function renderCanvas() {
   const box = $('flowNodes');
+  const restore = focusRestorer(box);
   box.textContent = '';
   $('canvasEmpty').style.display = G.nodes.length ? 'none' : 'flex';
   annotateCanvasCost();
@@ -4046,6 +4178,12 @@ function renderCanvas() {
     tag.className = 'tag';
     tag.textContent = n.id;
     el.appendChild(tag);
+    // Keyboard: the node is a tab stop; Enter/Space selects it for the inspector.
+    el.tabIndex = 0;
+    el.setAttribute('role', 'group');
+    el.setAttribute('aria-label', `${name.textContent} (${n.id})`);
+    el.dataset.fkey = 'node:' + n.id;
+    el.onkeydown = (ev) => { if (ev.target === el && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); selectNode(n.id); } };
 
     // Per-step overrides are visible at a glance, not hidden in the JSON.
     const badges = document.createElement('div');
@@ -4076,6 +4214,8 @@ function renderCanvas() {
     const gateBtn = document.createElement('button');
     gateBtn.className = 'tool';
     gateBtn.title = t('tt_gate') + ': ' + n.gate;
+    gateBtn.setAttribute('aria-label', gateBtn.title);
+    gateBtn.dataset.fkey = 'gate:' + n.id;
     gateBtn.appendChild(svgIcon(FGATE_ICONS[n.gate] || 'ic-dot', 'xs'));
     gateBtn.onclick = (ev) => {
       ev.stopPropagation();
@@ -4085,6 +4225,8 @@ function renderCanvas() {
     const loopBtn = document.createElement('button');
     loopBtn.className = 'tool';
     loopBtn.title = t('tt_loops') + ': ' + n.maxLoops;
+    loopBtn.setAttribute('aria-label', loopBtn.title);
+    loopBtn.dataset.fkey = 'loop:' + n.id;
     loopBtn.appendChild(svgIcon('ic-loop', 'xs'));
     loopBtn.onclick = (ev) => {
       ev.stopPropagation();
@@ -4094,6 +4236,7 @@ function renderCanvas() {
     const delBtn = document.createElement('button');
     delBtn.className = 'tool del';
     delBtn.title = t('tt_del');
+    delBtn.setAttribute('aria-label', delBtn.title);
     delBtn.appendChild(svgIcon('ic-cross', 'xs'));
     delBtn.onclick = (ev) => { ev.stopPropagation(); removeNode(n.id); };
     tools.append(gateBtn, loopBtn, delBtn);
@@ -4115,6 +4258,7 @@ function renderCanvas() {
   }
   renderEdges();
   renderInspector();
+  restore();
 }
 
 /* ---------- per-step inspector ---------- */
@@ -4138,8 +4282,8 @@ function renderInspector() {
   $('insLoops').value = n.maxLoops;
   $('insArtifact').textContent = n.stage.artifact || '—';
   const pre = n.stage.pre || [];
-  $('insCtx').classList.toggle('chip-active', pre.includes(PRE_SCRIPTS.ctx));
-  $('insChecks').classList.toggle('chip-active', pre.includes(PRE_SCRIPTS.checks));
+  setPressed($('insCtx'), pre.includes(PRE_SCRIPTS.ctx));
+  setPressed($('insChecks'), pre.includes(PRE_SCRIPTS.checks));
 }
 function withSelected(fn) {
   const n = selectedNode ? gNode(selectedNode) : null;
@@ -4314,8 +4458,8 @@ function setFlowView(view) {
   const canvas = view === 'canvas';
   $('canvasView').style.display = canvas ? '' : 'none';
   $('jsonView').style.display = canvas ? 'none' : '';
-  $('btnViewCanvas').classList.toggle('chip-active', canvas);
-  $('btnViewJson').classList.toggle('chip-active', !canvas);
+  setPressed($('btnViewCanvas'), canvas);
+  setPressed($('btnViewJson'), !canvas);
   localStorage.setItem('ff.flowview', view);
   if (canvas) renderEdges();
 }
@@ -4450,7 +4594,7 @@ let agentTools = new Set(['read', 'grep', 'glob', 'edit']);
 const agentsEd = makeEditor({
   listEl: 'agentList', editorEl: 'agentEditor',
   list: async () => (await api('/api/agents')).agents,
-  getUrl: '/api/agent?name=', postUrl: '/api/agent', pickMsg: 'pick_agent_first',
+  getUrl: '/api/agent?name=', postUrl: '/api/agent', pickMsg: 'pick_agent_first', prefer: 'coder',
   onLoad: (content) => { fillAgentForm(content); seedVisual(content); },
 });
 const loadAgents = agentsEd.load;
@@ -4469,10 +4613,13 @@ function fillAgentForm(content) {
 }
 function renderAgentTools() {
   const box = $('agTools');
+  const restore = focusRestorer(box);
   box.innerHTML = '';
   for (const tool of AGENT_TOOLS) {
     const b = document.createElement('button');
-    b.className = 'btn small' + (agentTools.has(tool) ? ' chip-active' : '');
+    b.className = 'btn small';
+    setPressed(b, agentTools.has(tool));
+    b.dataset.fkey = 'tool:' + tool;
     b.textContent = tool;
     b.onclick = () => {
       if (agentTools.has(tool)) agentTools.delete(tool); else agentTools.add(tool);
@@ -4480,6 +4627,7 @@ function renderAgentTools() {
     };
     box.appendChild(b);
   }
+  restore();
 }
 // Shared by the flow inspector and the agent form: family select + level select
 // driven by the live model catalogue.
@@ -4508,14 +4656,18 @@ const vis = { preset: 'analyst', artifact: 'analysis.md', tools: new Set(['read'
   sections: new Set(['inputs', 'output', 'summary']), rules: new Set(['cite']), desc: '' };
 
 function chipRow(box, items, isOn, onToggle, label, rerender) {
+  const restore = focusRestorer(box);
   box.innerHTML = '';
   for (const key of items) {
     const b = document.createElement('button');
-    b.className = 'btn small' + (isOn(key) ? ' chip-active' : '');
+    b.className = 'btn small';
+    setPressed(b, isOn(key));
+    b.dataset.fkey = 'chip:' + key;
     b.textContent = label(key);
     b.onclick = () => { onToggle(key); rerender(); };
     box.appendChild(b);
   }
+  restore();
 }
 function applyPreset(key) {
   const p = ROLE_PRESETS[key];
@@ -4530,10 +4682,13 @@ function applyPreset(key) {
 }
 function renderAgentPresets() {
   const box = $('agPresets');
+  const restore = focusRestorer(box);
   box.innerHTML = '';
   for (const [key, p] of Object.entries(ROLE_PRESETS)) {
     const b = document.createElement('button');
-    b.className = 'palbtn' + (vis.preset === key ? ' chip-active' : '');
+    b.className = 'palbtn';
+    setPressed(b, vis.preset === key);
+    b.dataset.fkey = 'preset:' + key;
     b.style.setProperty('--role', p.color);
     b.appendChild(svgIcon(p.icon));
     const lbl = document.createElement('span');
@@ -4543,6 +4698,7 @@ function renderAgentPresets() {
     b.onclick = () => applyPreset(key);
     box.appendChild(b);
   }
+  restore();
 }
 function renderAgentVisual() {
   renderAgentPresets();
@@ -4603,9 +4759,9 @@ function setAgentView(view) {
   $('agentVisualView').style.display = view === 'visual' ? '' : 'none';
   $('agentFormView').style.display = view === 'form' ? '' : 'none';
   $('agentEditor').style.display = view === 'raw' ? '' : 'none';
-  $('btnViewAgentVisual').classList.toggle('chip-active', view === 'visual');
-  $('btnViewAgentForm').classList.toggle('chip-active', view === 'form');
-  $('btnViewAgentRaw').classList.toggle('chip-active', view === 'raw');
+  setPressed($('btnViewAgentVisual'), view === 'visual');
+  setPressed($('btnViewAgentForm'), view === 'form');
+  setPressed($('btnViewAgentRaw'), view === 'raw');
   if (view === 'form') fillAgentForm($('agentEditor').value);
   if (view === 'visual') renderAgentVisual();
 }
@@ -4666,7 +4822,7 @@ $('btnDeleteAgent').onclick = async () => {
 const skillsEd = makeEditor({
   listEl: 'skillList', editorEl: 'skillEditor',
   list: async () => (await api('/api/skills')).skills,
-  getUrl: '/api/skill?name=', postUrl: '/api/skill', pickMsg: 'pick_skill_first',
+  getUrl: '/api/skill?name=', postUrl: '/api/skill', pickMsg: 'pick_skill_first', prefer: 'flow',
   onLoad: (content) => fillSkillForm(content),
 });
 const loadSkills = skillsEd.load;
@@ -4725,10 +4881,13 @@ const skv = { preset: 'runflow', flow: 'task', gate: 'terminal', rules: new Set(
 
 function renderSkillVisual() {
   const box = $('skPresets');
+  const restore = focusRestorer(box);
   box.innerHTML = '';
   for (const [key, p] of Object.entries(SKILL_PRESETS)) {
     const b = document.createElement('button');
-    b.className = 'palbtn' + (skv.preset === key ? ' chip-active' : '');
+    b.className = 'palbtn';
+    setPressed(b, skv.preset === key);
+    b.dataset.fkey = 'preset:' + key;
     b.style.setProperty('--role', p.color);
     b.appendChild(svgIcon(p.icon));
     const lbl = document.createElement('span');
@@ -4738,6 +4897,7 @@ function renderSkillVisual() {
     b.onclick = () => { skv.preset = key; renderSkillVisual(); };
     box.appendChild(b);
   }
+  restore();
   const flows = (lastData && lastData.flows) || ['task'];
   $('skvFlow').innerHTML = flows.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
   $('skvFlow').value = flows.includes(skv.flow) ? skv.flow : flows[0];
@@ -4767,9 +4927,9 @@ function setSkillView(view) {
   $('skillVisualView').style.display = view === 'visual' ? '' : 'none';
   $('skillFormView').style.display = view === 'form' ? '' : 'none';
   $('skillEditor').style.display = view === 'raw' ? '' : 'none';
-  $('btnViewSkillVisual').classList.toggle('chip-active', view === 'visual');
-  $('btnViewSkillForm').classList.toggle('chip-active', view === 'form');
-  $('btnViewSkillRaw').classList.toggle('chip-active', view === 'raw');
+  setPressed($('btnViewSkillVisual'), view === 'visual');
+  setPressed($('btnViewSkillForm'), view === 'form');
+  setPressed($('btnViewSkillRaw'), view === 'raw');
   if (view === 'form') fillSkillForm($('skillEditor').value);
   if (view === 'visual') renderSkillVisual();
 }
@@ -4851,9 +5011,14 @@ function renderProjectSettings(d) {
   $('setGateMode').value = d.settings.gateMode || 'default';
   if ($('setRefineHttpOnly')) $('setRefineHttpOnly').checked = saved === 'http';
   $('setRefineProvider').disabled = saved === 'http';
-  refreshRefineOptions(saved).then(() => {
-    if (saved !== 'http' && !settingsDirty) $('setRefineProvider').value = saved;
-  });
+  // Probing six tool logins is only worth it where the picker is visible: on
+  // every other page those requests just crowd the browser's six-connection
+  // pool and delay what the user actually opened (a flow, an artifact).
+  if (activeTab === 'settings') {
+    refreshRefineOptions(saved).then(() => {
+      if (saved !== 'http' && !settingsDirty) $('setRefineProvider').value = saved;
+    });
+  }
   // The custom-endpoint fields live on the Executors card; when the grid has
   // not rendered yet there is nothing to fill here.
   if ($('setRefineBase') && document.activeElement !== $('setRefineBase')) $('setRefineBase').value = d.settings.refineApiBase || '';
@@ -4887,16 +5052,12 @@ function openApiModal() {
   $('setRefineKey').value = '';
   $('setRefineKey').placeholder = s.refineApiKeySet ? '••••••••' : 'gsk_...';
   $('setRefineHttpOnly').checked = s.refineProvider === 'http';
-  $('apiModal').classList.add('open');
-  $('setRefineBase').focus();
+  openOverlay($('apiModal'), $('setRefineBase'));
 }
-function closeApiModal() { $('apiModal').classList.remove('open'); }
+function closeApiModal() { closeOverlay($('apiModal')); }
 $('apiModalX').onclick = closeApiModal;
 $('apiModalCancel').onclick = closeApiModal;
 $('apiModal').onclick = (e) => { if (e.target === $('apiModal')) closeApiModal(); };
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && $('apiModal').classList.contains('open')) closeApiModal();
-});
 
 /* ============================== quick switcher (Ctrl/Cmd+K) ============================== */
 let cmdkSel = 0;
@@ -4911,18 +5072,30 @@ function cmdkItems() {
 function renderCmdk() {
   const items = cmdkItems();
   cmdkSel = Math.min(cmdkSel, Math.max(items.length - 1, 0));
-  $('cmdkList').innerHTML = items.map((i, n) => `<button type="button" class="cmdk-item${n === cmdkSel ? ' sel' : ''}" data-n="${n}">`
-    + `<svg class="ic"><use href="${esc(i.icon)}"/></svg><span>${esc(i.label)}</span><span class="grp">${esc(i.group)}</span></button>`).join('')
+  // Combobox + listbox: focus stays in the input, the highlighted option is announced.
+  $('cmdkList').innerHTML = items.map((i, n) => `<button type="button" class="cmdk-item${n === cmdkSel ? ' sel' : ''}" data-n="${n}"`
+    + ` id="cmdk-opt-${n}" role="option" tabindex="-1" aria-selected="${n === cmdkSel}">`
+    + `<svg class="ic" aria-hidden="true"><use href="${esc(i.icon)}"/></svg><span>${esc(i.label)}</span><span class="grp">${esc(i.group)}</span></button>`).join('')
     || `<div class="empty">—</div>`;
   $('cmdkList').querySelectorAll('.cmdk-item').forEach((b) => { b.onclick = () => { cmdkSel = +b.dataset.n; runCmdk(); }; });
+  if (items.length) $('cmdkInput').setAttribute('aria-activedescendant', 'cmdk-opt-' + cmdkSel);
+  else $('cmdkInput').removeAttribute('aria-activedescendant');
 }
-function openCmdk() { $('cmdk').classList.add('open'); $('cmdkInput').value = ''; cmdkSel = 0; renderCmdk(); $('cmdkInput').focus(); }
-function closeCmdk() { $('cmdk').classList.remove('open'); }
+function openCmdk() {
+  $('cmdkInput').value = ''; cmdkSel = 0; renderCmdk();
+  openOverlay($('cmdk'), $('cmdkInput'));
+  $('cmdkInput').setAttribute('aria-expanded', 'true');
+}
+function closeCmdk() {
+  closeOverlay($('cmdk'));
+  $('cmdkInput').setAttribute('aria-expanded', 'false');
+}
 function runCmdk() {
   const it = cmdkItems()[cmdkSel];
   closeCmdk();
   if (!it) return;
-  if (it.el.tagName === 'A') location.href = it.el.getAttribute('href'); else it.el.click();
+  if (it.el.tagName === 'A') location.href = it.el.getAttribute('href');
+  else { it.el.click(); $('main').focus({ preventScroll: true }); } // land at the top of the page just opened
 }
 $('btnQuick').onclick = openCmdk;
 document.querySelectorAll('[data-jump]').forEach((b) => { b.onclick = () => $(b.dataset.jump).scrollIntoView({ behavior: 'smooth', block: 'start' }); });
@@ -4933,12 +5106,24 @@ $('cmdkInput').onkeydown = (e) => {
   if (e.key === 'ArrowDown') { e.preventDefault(); cmdkSel = (cmdkSel + 1) % Math.max(n, 1); renderCmdk(); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); cmdkSel = (cmdkSel - 1 + n) % Math.max(n, 1); renderCmdk(); }
   else if (e.key === 'Enter') { e.preventDefault(); runCmdk(); }
-  else if (e.key === 'Escape') closeCmdk();
 };
+// One keyboard handler for every dialog: Ctrl/Cmd-K toggles the switcher,
+// Escape closes the dialog on top, Tab and Shift-Tab wrap inside it.
 document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('cmdk').classList.contains('open') ? closeCmdk() : openCmdk(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('cmdk').classList.contains('open') ? closeCmdk() : openCmdk(); return; }
+  const top = overlays[overlays.length - 1];
+  if (!top) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    ({ apiModal: closeApiModal, cmdk: closeCmdk, pickerBack: pickerClose })[top.el.id]();
+  } else if (e.key === 'Tab') {
+    const list = focusables(top.el);
+    if (!list.length) { e.preventDefault(); return; }
+    const first = list[0], last = list[list.length - 1], inside = top.el.contains(document.activeElement);
+    if (e.shiftKey && (!inside || document.activeElement === first)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (!inside || document.activeElement === last)) { e.preventDefault(); first.focus(); }
+  }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeApiModal(); });
 $('btnSaveApi').onclick = async () => { await saveRefine(); closeApiModal(); loadProviders(false); };
 $('setRefineHttpOnly').onchange = () => {
   $('setRefineProvider').disabled = $('setRefineHttpOnly').checked;
@@ -5026,14 +5211,16 @@ function providerCard(p, auth) {
     }
   }
   if (auth && auth.canOpen) {
-    buttons.push(`<button class="btn small primary" data-act="login" data-id="${esc(p.id)}">${esc(t('prov_open_app'))}</button>`);
+    // One primary action per card: the sign-in button keeps it when both are offered.
+    const primary = buttons.some((b) => b.includes(' primary"')) ? '' : ' primary';
+    buttons.push(`<button class="btn small${primary}" data-act="login" data-id="${esc(p.id)}">${esc(t('prov_open_app'))}</button>`);
   }
   if (p.id !== PROVIDER) {
     buttons.push(`<button class="btn small" data-act="use" data-id="${esc(p.id)}">${esc(t('prov_use'))}</button>`);
   }
   const dot = auth && auth.loggedIn ? 'on' : auth && auth.known ? 'off' : '';
   return `<div class="provcard${p.id === PROVIDER ? ' active' : ''}${p.installed ? '' : ' off'}">`
-    + `<div class="provhead"><div class="provicon">${PROVIDER_ICON[p.id] || '•'}</div>`
+    + `<div class="provhead"><div class="provicon" aria-hidden="true">${PROVIDER_ICON[p.id] || '•'}</div>`
     + `<div class="provname">${esc(name)}`
     + (p.id === PROVIDER ? ` <span class="badge done">${esc(t('prov_active'))}</span>` : '')
     + `</div><div class="provdot ${dot}" title=""></div></div>`
@@ -5057,7 +5244,7 @@ function customApiCard() {
     ? `${esc(base)}${s.refineModel ? `<br>${esc(s.refineModel)}` : ''}${s.refineApiKeySet ? '<br>key: ••••••••' : ''}`
     : esc(t('refine_http_hint_card'));
   return `<div class="provcard${configured ? '' : ' off'}">`
-    + `<div class="provhead"><div class="provicon">⌁</div>`
+    + `<div class="provhead"><div class="provicon" aria-hidden="true">⌁</div>`
     + `<div class="provname">${esc(t('refine_http'))}</div>`
     + `<div class="provdot ${configured ? 'on' : ''}"></div></div>`
     + `<div class="provchips"><span class="badge${configured ? ' done' : ''}">${esc(configured ? t('prov_configured_at') : t('prov_not_configured'))}</span>`
@@ -5078,6 +5265,7 @@ async function loadProviders(force) {
     // What you can use now gets the room; the long tail of tools that are not
     // on this machine folds under one line (state survives repaints).
     const moreOpen = !!box.querySelector('details.provmore[open]');
+    const restore = focusRestorer(box);
     const ready = [], rest = [];
     list.forEach((p, i) => ((p.installed || p.runnable || (auths[i] && auths[i].loggedIn)) ? ready : rest).push(providerCard(p, auths[i])));
     box.className = '';
@@ -5089,6 +5277,7 @@ async function loadProviders(force) {
       b.onclick = () => (b.dataset.act === 'use' ? useProvider(b.dataset.id)
         : providerLogin(b.dataset.id, b.dataset.act === 'altlogin'));
     });
+    restore();
   };
   try {
     const d = await api('/api/providers');
@@ -5164,6 +5353,11 @@ $('btnProvRefresh').onclick = () => loadProviders(true);
 
 function renderProjects(d) {
   const el = $('projList');
+  // Called on every poll: rebuild only when the list changed, so keyboard focus survives.
+  const sig = JSON.stringify([d.projects || [], d.project || '']) + '|' + LANG;
+  if (el.dataset.sig === sig) return;
+  el.dataset.sig = sig;
+  const restore = focusRestorer(el);
   el.innerHTML = '';
   (d.projects || []).forEach((p) => {
     const div = document.createElement('div');
@@ -5171,8 +5365,8 @@ function renderProjects(d) {
     div.innerHTML = `<span class="path">${esc(p)}</span>` +
       (p === d.project
         ? `<span class="badge done">${esc(t('active'))}</span>`
-        : `<button class="btn small" data-act="activate">${esc(t('activate'))}</button>`) +
-      `<button class="btn small" data-act="remove">${esc(t('remove'))}</button>`;
+        : `<button class="btn small" data-act="activate" data-fkey="activate:${esc(p)}">${esc(t('activate'))}</button>`) +
+      `<button class="btn small" data-act="remove" data-fkey="remove:${esc(p)}">${esc(t('remove'))}</button>`;
     div.querySelectorAll('button').forEach((b) => b.onclick = async () => {
       try {
         await post('/api/projects', { action: b.dataset.act, path: p });
@@ -5182,6 +5376,7 @@ function renderProjects(d) {
     });
     el.appendChild(div);
   });
+  restore();
 }
 $('btnAddProj').onclick = async () => {
   const p = $('newProjPath').value.trim();
@@ -5199,17 +5394,19 @@ $('btnAddProj').onclick = async () => {
    folders; the chosen folder is added to the registry and activated. */
 let pickerDir = null;
 async function pickerOpen(startAt) {
-  $('pickerBack').classList.add('open');
-  await pickerLoad(startAt || localStorage.getItem('ff.lastdir') || '');
+  openOverlay($('pickerBack'), $('pickerClose'));
+  await pickerLoad(startAt || localStorage.getItem('ff.lastdir') || '', true);
 }
-function pickerClose() { $('pickerBack').classList.remove('open'); }
-async function pickerLoad(dir) {
+function pickerClose() { closeOverlay($('pickerBack')); }
+// focusList: put keyboard focus on the first folder once it is listed (on open,
+// and after a row was activated - that row is gone once the list is rebuilt).
+async function pickerLoad(dir, focusList) {
   let d;
   try {
     d = await api('/api/browse' + (dir ? '?path=' + encodeURIComponent(dir) : ''));
   } catch (e) {
     toast(e.message, 'err');
-    if (dir) return pickerLoad('');
+    if (dir) return pickerLoad('', focusList);
     return;
   }
   pickerDir = d.path;
@@ -5218,16 +5415,18 @@ async function pickerLoad(dir) {
   $('pickerUp').style.display = d.parent ? '' : 'none';
   if (d.path) localStorage.setItem('ff.lastdir', d.path);
   const list = $('pickerList');
+  const moveIn = focusList || list.contains(document.activeElement) || (!d.parent && document.activeElement === $('pickerUp'));
   list.innerHTML = '';
   const row = (label, target, marks) => {
-    const el = document.createElement('div');
+    const el = document.createElement('button');
+    el.type = 'button';
     el.className = 'pickrow';
     const tags = marks
       ? `<span class="tags">${marks.workbench ? `<span class="tag hit">.workbench</span>` : ''}`
         + `${marks.git ? '<span class="tag hit">git</span>' : ''}`
         + `${marks.pkg ? '<span class="tag">npm</span>' : ''}</span>`
       : '';
-    el.innerHTML = `<span>📁</span><span class="nm">${esc(label)}</span>${tags}`;
+    el.innerHTML = `<span aria-hidden="true">📁</span><span class="nm">${esc(label)}</span>${tags}`;
     el.onclick = () => pickerLoad(target);
     list.appendChild(el);
   };
@@ -5238,6 +5437,7 @@ async function pickerLoad(dir) {
     d.entries.forEach((e) => row(e.name, e.path, e));
     if (!d.entries.length) list.innerHTML = `<div class="empty">${esc(t('pick_no_sub'))}</div>`;
   }
+  if (moveIn && $('pickerBack').classList.contains('open')) (list.querySelector('.pickrow') || $('pickerClose')).focus();
 }
 $('btnPickProj').onclick = () => pickerOpen();
 $('btnPickTop').onclick = () => pickerOpen();

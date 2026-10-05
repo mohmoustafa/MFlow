@@ -505,6 +505,12 @@ ok('ui script parses (syntax valid)', syntaxOk, syntaxErr);
   const used = new Set();
   for (const m of script.matchAll(/\bt\('([\w]+)'\)/g)) used.add(m[1]);
   for (const m of uiSrc.matchAll(/data-i18n="([\w]+)"/g)) used.add(m[1]);
+  // Accessible names set from data-i18n-aria (applyLang) must be translated too.
+  const ariaKeys = new Set([...uiSrc.matchAll(/data-i18n-aria="(\w+)"/g)].map((m) => m[1]));
+  for (const k of ariaKeys) used.add(k);
+  ok('i18n: data-i18n-aria names exist in EN and AR',
+    ariaKeys.size > 0 && [...ariaKeys].every((k) => langs.en[k] && langs.ar[k]),
+    [...ariaKeys].filter((k) => !langs.en[k] || !langs.ar[k]).join(','));
   // Dynamic keys built by concatenation: t('st_' + status), t('fs_' + status)
   for (const st of ['pending', 'running', 'waiting_gate', 'done', 'failed', 'skipped']) used.add('st_' + st);
   for (const st of ['running', 'waiting_gate', 'done', 'failed', 'stopped']) used.add('fs_' + st);
@@ -3092,6 +3098,18 @@ console.log('# core engine');
     && ['Skills', 'Agent profiles', 'Flows', 'State engine'].every((n) => byName(n).status === 'ok'),
     rep ? JSON.stringify(rep.checks.filter((c) => c.status !== 'ok')) : doc.stdout.slice(0, 200));
   ok('doctor: every problem comes with a fix', rep && rep.checks.filter((c) => c.status === 'fail' || c.status === 'warn').every((c) => c.fix));
+  // Responsiveness: nothing slow may run on the server's main thread or crowd
+  // the browser's connection pool on pages that do not need it.
+  const usageSrc = fs.readFileSync(path.join(DASHBOARD, 'usage.mjs'), 'utf8');
+  ok('perf: the session-log scan runs in a worker and serves the cache while it refreshes',
+    usageSrc.includes('new Worker(new URL(import.meta.url)') && /MIN_REFRESH_MS/.test(usageSrc)
+    && /refreshSessions\(stamp\);\s*return cache\.result;/.test(usageSrc));
+  ok('perf: tool-login probes for the prompt picker only run on the Settings page',
+    /if \(activeTab === 'settings'\) \{\s*refreshRefineOptions\(saved\)/.test(uiSrc));
+  ok('ui: editors open on real content (a preferred item), never an empty canvas',
+    /prefer: 'task'/.test(uiSrc) && /if \(!state\.current && names\.length\) \(pick \|\| el\.firstElementChild\)\.click\(\)/.test(uiSrc));
+  ok('ui: the sidebar collapses to an icon rail on laptop widths, with tooltips',
+    /@media \(max-width:1280px\) and \(min-width:961px\)/.test(uiSrc) && uiSrc.includes("el.setAttribute('aria-label', l.textContent)"));
   ok('core: new scripts use node builtins only',
     ['state.mjs', 'run-flow.mjs', 'doctor.mjs', 'lib/state.mjs'].every((f) => [...fs.readFileSync(path.join(WORKBENCH, 'scripts', f), 'utf8').matchAll(/from\s+'([^']+)'/g)]
       .every((m) => m[1].startsWith('node:') || m[1].startsWith('./') || m[1].startsWith('../'))));

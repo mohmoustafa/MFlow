@@ -3,15 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>·</title>
+<title>FlowForge Studio</title>
 <style>
   /* Studio - icon-only flow builder. Soft elevation, zero visible
      typography: every affordance is an inline stroke SVG. It shares the
-     dashboard's design tokens and follows its theme (ff.theme). */
+     dashboard's design tokens and follows its theme (ff.theme).
+     Colour tokens mirror index.html (the two pages cannot share a file
+     under the CSP) - keep both in sync.
+     Breakpoints: <= 900px the chain stacks vertically, <= 480px phone
+     sizing; pointer:coarse raises every target to 40px. */
   :root{
     --bg:#07080c; --paper:rgba(22,24,33,.6); --paper2:rgba(255,255,255,.045); --ink:#f5f6f8; --line:rgba(255,255,255,.09); --mute:#8a90a5;
     --accent:#8b97ff; --violet:#a66bff; --ok:#34d399; --warn:#fbbf24; --bad:#ff6b6b;
     --grad:linear-gradient(135deg,#5b6cff 0%,#9b5cff 55%,#ff5fa2 100%);
+    --grad-cta:linear-gradient(135deg,#4553e6 0%,#7c3aed 55%,#d6246e 100%);
     --glass:saturate(170%) blur(22px);
     --sh-1:0 1px 0 rgba(255,255,255,.05) inset, 0 8px 24px rgba(0,0,0,.3);
     --sh-2:0 1px 0 rgba(255,255,255,.06) inset, 0 24px 60px rgba(0,0,0,.45);
@@ -21,13 +26,14 @@
     --c-tester:#3ecc6b; --c-debugger:#f0a92e; --c-shipper:#f472b6;
   }
   [data-theme="light"]{
-    --bg:#eef0f6; --paper:rgba(255,255,255,.72); --paper2:rgba(15,23,42,.04); --ink:#0f1222; --line:rgba(15,23,42,.1); --mute:#8a90a2;
-    --accent:#4f5bff; --violet:#8b46ff; --ok:#0f9f6e; --warn:#b7791f; --bad:#d63c3c;
+    --bg:#eef0f6; --paper:rgba(255,255,255,.72); --paper2:rgba(15,23,42,.04); --ink:#0f1222; --line:rgba(15,23,42,.1); --mute:#6b7186;
+    --accent:#4f5bff; --violet:#8b46ff; --ok:#0a7d55; --warn:#93600f; --bad:#c53030;
     --grad:linear-gradient(135deg,#5b6cff 0%,#9b5cff 55%,#ff5fa2 100%);
     --sh-1:0 1px 2px rgba(16,24,40,.06);
     --sh-2:0 12px 32px rgba(16,24,40,.08);
-    --c-thinker:#7a5af8; --c-analyst:#2563eb; --c-coder:#0ea5e9;
-    --c-tester:#12b76a; --c-debugger:#f79009; --c-shipper:#ef4899;
+    /* A stage's colour is its only identity here: every one stays >= 3:1 on the card. */
+    --c-thinker:#7a5af8; --c-analyst:#2563eb; --c-coder:#0278b8;
+    --c-tester:#0b8a52; --c-debugger:#c4610a; --c-shipper:#ef4899;
   }
   *,*::before,*::after{box-sizing:border-box;}
   html,body{height:100%;}
@@ -78,7 +84,10 @@
   .rail .logo .ic{width:18px; height:18px;}
   .rail .sep{inline-size:1px; block-size:24px; background:var(--line); margin:0 4px;}
   .rail .spacer{flex:1;}
-  #projChips{display:flex; align-items:center; gap:var(--gap); flex-wrap:wrap;}
+  /* The rail stays one line: many projects scroll sideways inside it. */
+  #projChips{display:flex; align-items:center; gap:var(--gap); flex-wrap:nowrap; flex:0 1 auto; min-width:0;
+    overflow-x:auto; padding:4px; margin:-4px 0; scrollbar-width:thin;}
+  #projChips .chip{flex:none;}
   .chip{
     inline-size:var(--hit); block-size:var(--hit); border-radius:999px;
     border:1px solid var(--line); background:var(--paper); box-shadow:var(--sh-1);
@@ -150,8 +159,10 @@
   .node[data-st="skipped"] .dot{color:var(--mute); border-style:dashed;}
   .node[data-drag="1"]{opacity:.4;}
   @keyframes pulse{0%,100%{box-shadow:var(--sh-1),0 0 0 0 color-mix(in srgb, var(--accent) 32%, transparent);} 50%{box-shadow:var(--sh-1),0 0 0 10px transparent;}}
-  .grip{color:var(--mute); border:0; box-shadow:none; background:none; min-width:0; min-height:24px; inline-size:24px; cursor:grab;}
-  .grip:hover{transform:none; box-shadow:none;}
+  /* Drag affordance only (the whole stage is draggable): not a control. */
+  .grip{display:inline-flex; align-items:center; justify-content:center; color:var(--mute); inline-size:24px; block-size:24px; cursor:grab;}
+  .node:focus-visible{outline-offset:6px; border-radius:var(--r-m);}
+  .dot:focus-visible{outline-offset:5px;}
 
   /* ---------- segmented control ---------- */
   .seg{
@@ -172,6 +183,8 @@
     background:none; position:relative;
   }
   .seg button:hover{transform:none; box-shadow:none;}
+  /* Inset ring: the outset one was hidden under the neighbouring options. */
+  .seg button:focus-visible{outline-offset:-2px; border-radius:999px;}
   .seg button[data-on="1"]{color:var(--accent);}
   .seg.big button{inline-size:var(--hit); block-size:var(--hit);}
 
@@ -231,7 +244,7 @@
   /* The one primary action on the page: the only gradient fill. */
   #btnRun{
     position:absolute; inset:8px; inline-size:72px; block-size:72px;
-    border-radius:999px; color:#fff; background:var(--grad); border-color:transparent;
+    border-radius:999px; color:#fff; background:var(--grad-cta); border-color:transparent;
     box-shadow:0 10px 30px color-mix(in srgb, var(--accent) 45%, transparent);
   }
   #btnRun:hover{filter:brightness(1.1); box-shadow:0 14px 36px color-mix(in srgb, var(--accent) 55%, transparent);}
@@ -279,6 +292,22 @@
     .intent{inline-size:104px; block-size:104px;}
     .intent .ic{width:48px; height:48px;}
   }
+  @media (max-width:480px){
+    main{padding-inline:12px;}
+    #intentRow{gap:var(--gap);}
+    .intent{inline-size:80px; block-size:80px;}
+    .intent .ic{width:40px; height:40px;}
+    #actions{gap:16px;}
+    .sheet .pal{inline-size:56px; block-size:56px;}
+  }
+  /* Touch screens: every target is at least 40px; stages widen so a 3-option
+     gate selector fits under the stage without overlapping its neighbour. */
+  @media (pointer:coarse){
+    .seg button{inline-size:40px; block-size:40px;}
+    .node{inline-size:136px;}
+    .sw{block-size:40px;}
+    .sw i{inset-block-start:8px;}
+  }
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation:none !important; transition:none !important;}
     button:hover,a.btn:hover{transform:none;}
@@ -320,22 +349,22 @@
   <symbol id="ic-check-list" viewBox="0 0 24 24"><path d="M4.4 7.6 6.2 9.4 9.4 6.2"/><path d="M4.4 16.6 6.2 18.4 9.4 15.2"/><path d="M12.6 7.8H20M12.6 16.8H20"/></symbol>
 </defs></svg>
 
-<div class="rail">
+<header class="rail">
   <span class="logo" aria-hidden="true"><svg class="ic" viewBox="0 0 24 24"><rect x="3.5" y="4" width="6" height="5" rx="1.4"/><rect x="14.5" y="15" width="6" height="5" rx="1.4"/><path d="M9.5 6.5h3a2 2 0 0 1 2 2v6.5"/></svg></span>
   <span class="sep" aria-hidden="true"></span>
-  <a class="btn" id="lnkHome" href="/" aria-label="dashboard"><svg class="ic sm"><use href="#ic-home"/></svg></a>
-  <span id="projChips"></span>
+  <a class="btn" id="lnkHome" href="/" aria-label="dashboard" title="dashboard"><svg class="ic sm" aria-hidden="true"><use href="#ic-home"/></svg></a>
+  <span id="projChips" role="group" aria-label="projects"></span>
   <span class="spacer"></span>
-  <span class="chip" id="execDot" data-st="unknown" aria-hidden="true"><svg class="ic sm"><use href="#ic-dot"/></svg></span>
-  <button id="btnSheet" aria-label="settings" aria-expanded="true"><svg class="ic sm"><use href="#ic-gear"/></svg></button>
-</div>
+  <span class="chip" id="execDot" data-st="unknown" role="img" aria-label="executor unknown" title="executor unknown"><svg class="ic sm" aria-hidden="true"><use href="#ic-dot"/></svg></span>
+  <button id="btnSheet" aria-label="settings" title="settings" aria-expanded="true" aria-controls="controls"><svg class="ic sm" aria-hidden="true"><use href="#ic-gear"/></svg></button>
+</header>
 
 <main>
 
   <section class="card" id="gateCard" data-show="0" role="group" aria-label="approval gate">
     <svg class="ic lg"><use href="#ic-monitor"/></svg>
-    <button id="btnGateOk" aria-label="approve"><svg class="ic"><use href="#ic-tick"/></svg></button>
-    <button id="btnGateNo" aria-label="reject"><svg class="ic"><use href="#ic-cross"/></svg></button>
+    <button id="btnGateOk" aria-label="approve" title="approve"><svg class="ic" aria-hidden="true"><use href="#ic-tick"/></svg></button>
+    <button id="btnGateNo" aria-label="reject" title="reject"><svg class="ic" aria-hidden="true"><use href="#ic-cross"/></svg></button>
   </section>
 
   <section id="intentRow" role="radiogroup" aria-label="intent"></section>
@@ -345,39 +374,39 @@
   <section class="card" id="controls">
     <div class="ctl loops">
       <svg class="ic sm"><use href="#ic-loop"/></svg>
-      <input type="range" id="rngLoops" min="1" max="5" step="1" value="3" aria-label="retry loops">
+      <input type="range" id="rngLoops" min="1" max="5" step="1" value="3" aria-label="retry loops" title="retry loops">
       <span id="loopDots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
     </div>
     <div class="ctl swrow" id="rowCtx" data-on="1">
       <svg class="ic sm"><use href="#ic-layers"/></svg>
-      <button class="sw" id="swCtx" data-on="1" role="switch" aria-checked="true" aria-label="collect context script"><i></i></button>
+      <button class="sw" id="swCtx" data-on="1" role="switch" aria-checked="true" aria-label="collect context script" title="collect context script"><i></i></button>
     </div>
     <div class="ctl swrow" id="rowChecks" data-on="1">
       <svg class="ic sm"><use href="#ic-check-list"/></svg>
-      <button class="sw" id="swChecks" data-on="1" role="switch" aria-checked="true" aria-label="run checks script"><i></i></button>
+      <button class="sw" id="swChecks" data-on="1" role="switch" aria-checked="true" aria-label="run checks script" title="run checks script"><i></i></button>
     </div>
     <div class="ctl">
       <span class="seg big" id="segGateMode" role="radiogroup" aria-label="global gate mode">
         <span class="pill"></span>
-        <button data-v="default" aria-label="gate mode default"><svg class="ic sm"><use href="#ic-dot"/></svg></button>
-        <button data-v="auto" aria-label="gate mode auto"><svg class="ic sm"><use href="#ic-bolt"/></svg></button>
-        <button data-v="dashboard" aria-label="gate mode dashboard"><svg class="ic sm"><use href="#ic-monitor"/></svg></button>
-        <button data-v="terminal" aria-label="gate mode terminal"><svg class="ic sm"><use href="#ic-terminal"/></svg></button>
+        <button data-v="default" role="radio" aria-label="gate mode default" title="gate mode default"><svg class="ic sm" aria-hidden="true"><use href="#ic-dot"/></svg></button>
+        <button data-v="auto" role="radio" aria-label="gate mode auto" title="gate mode auto"><svg class="ic sm" aria-hidden="true"><use href="#ic-bolt"/></svg></button>
+        <button data-v="dashboard" role="radio" aria-label="gate mode dashboard" title="gate mode dashboard"><svg class="ic sm" aria-hidden="true"><use href="#ic-monitor"/></svg></button>
+        <button data-v="terminal" role="radio" aria-label="gate mode terminal" title="gate mode terminal"><svg class="ic sm" aria-hidden="true"><use href="#ic-terminal"/></svg></button>
       </span>
     </div>
   </section>
 
   <section id="actions">
-    <button id="btnSave" data-st="idle" aria-label="save flow"><svg class="ic"><use href="#ic-save"/></svg></button>
+    <button id="btnSave" data-st="idle" aria-label="save flow" title="save flow"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg></button>
     <span class="runwrap">
       <svg id="runArc" viewBox="0 0 88 88" aria-hidden="true"><circle class="trk" cx="44" cy="44" r="41"/><circle class="val" cx="44" cy="44" r="41"/></svg>
-      <button id="btnRun" data-st="idle" aria-label="run"><svg class="ic xl"><use href="#ic-play"/></svg></button>
+      <button id="btnRun" data-st="idle" aria-label="run" title="run"><svg class="ic xl" aria-hidden="true"><use href="#ic-play"/></svg></button>
     </span>
   </section>
 
 </main>
 
-<div class="sheet" id="palette" data-open="0" role="group" aria-label="role palette"></div>
+<div class="sheet" id="palette" data-open="0" role="group" aria-label="role palette" aria-hidden="true" inert></div>
 
 <script>
 /* ============================== presets ==============================
@@ -568,7 +597,14 @@ function el(tag, cls, attrs) {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
   for (const k in (attrs || {})) n.setAttribute(k, attrs[k]);
+  // The page shows no words: a named button also gets its name as a hover tooltip.
+  if (tag === 'button' && n.hasAttribute('aria-label')) n.title = n.getAttribute('aria-label');
   return n;
+}
+/* Name a control for assistive tech and as a tooltip, in one place. */
+function label(node, text) {
+  node.setAttribute('aria-label', text);
+  node.title = text;
 }
 function flash(node, st) {
   const prev = node.dataset.st;
@@ -581,7 +617,8 @@ function hashHue(s) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
   return h;
 }
-/* Position a segmented control's sliding pill (physical px, RTL-safe). */
+/* Position a segmented control's sliding pill (physical px, RTL-safe).
+   It is also a radio group: only the checked option is a tab stop. */
 function segSelect(seg, value) {
   const pill = seg.querySelector('.pill');
   let target = null;
@@ -589,19 +626,41 @@ function segSelect(seg, value) {
     const on = b.dataset.v === value;
     b.dataset.on = on ? '1' : '0';
     b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
     if (on) target = b;
   });
+  if (!target) { const first = seg.querySelector('button'); if (first) first.tabIndex = 0; }
   if (target && pill) { pill.style.left = target.offsetLeft + 'px'; pill.style.width = target.offsetWidth + 'px'; }
+}
+/* Standard radio-group keys: arrows move and select (Left/Right mirrored in
+   RTL), Home/End jump to the ends; focus follows the selection. */
+function radioKeys(group) {
+  group.addEventListener('keydown', (e) => {
+    const opts = [...group.querySelectorAll('[role="radio"]')];
+    const i = opts.indexOf(e.target);
+    if (i < 0) return;
+    const rtl = document.documentElement.dir === 'rtl';
+    const step = { ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1, ArrowDown: 1, ArrowUp: -1 }[e.key];
+    const j = step ? (i + step + opts.length) % opts.length : e.key === 'Home' ? 0 : e.key === 'End' ? opts.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault();
+    e.stopPropagation(); // a gate group sits inside a stage: its arrows must not reorder the stage
+    const key = opts[j].dataset.v || opts[j].dataset.k;
+    opts[j].click();
+    const again = [...group.querySelectorAll('[role="radio"]')].find((o) => (o.dataset.v || o.dataset.k) === key);
+    (again || opts[j]).focus();
+  });
 }
 function makeSeg(values, current, cls, onPick, labelPrefix) {
   const seg = el('span', 'seg' + (cls ? ' ' + cls : ''), { role: 'radiogroup', 'aria-label': labelPrefix });
   seg.appendChild(el('span', 'pill'));
   for (const v of values) {
-    const b = el('button', null, { 'data-v': v, role: 'radio', 'aria-label': labelPrefix + ' ' + v });
+    const b = el('button', null, { 'data-v': v, role: 'radio', 'aria-label': labelPrefix + ' ' + v, tabindex: v === current ? '0' : '-1' });
     b.appendChild(icon(GATE_ICONS[v], 'sm'));
     b.onclick = () => { onPick(v); segSelect(seg, v); };
     seg.appendChild(b);
   }
+  radioKeys(seg);
   requestAnimationFrame(() => segSelect(seg, current));
   return seg;
 }
@@ -628,12 +687,14 @@ function renderIntents() {
       };
       row.appendChild(b);
     }
+    radioKeys(row);
     row.dataset.built = '1';
   }
   row.querySelectorAll('.intent').forEach((b) => {
     const on = b.dataset.k === S.intent;
     b.dataset.on = on ? '1' : '0';
     b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
   });
 }
 
@@ -665,6 +726,11 @@ function toggleRole(role) {
   save();
   renderChain(); renderPalette();
 }
+/* The chain is rebuilt on every change: put keyboard focus back where it was. */
+function refocus(selector) {
+  const n = document.querySelector(selector);
+  if (n) n.focus();
+}
 
 function renderChain() {
   const chain = $('chain');
@@ -676,15 +742,16 @@ function renderChain() {
     const node = el('div', 'node', {
       'data-role': role, 'data-on': S.on[role] ? '1' : '0', 'data-st': '',
       'data-hex': R.hex ? '1' : '0', role: 'listitem', draggable: 'true',
-      tabindex: '0', 'aria-label': 'stage ' + role,
+      tabindex: '0', 'aria-roledescription': 'draggable stage',
+      'aria-label': 'stage ' + role + ', ' + (idx + 1) + ' of ' + S.order.length + ', ' + (S.on[role] ? 'on' : 'off'),
     });
     node.style.setProperty('--role', R.color);
     const dot = el('button', 'dot', { 'aria-pressed': S.on[role] ? 'true' : 'false', 'aria-label': 'toggle ' + role });
     dot.appendChild(icon(R.icon, 'lg'));
-    dot.onclick = () => toggleRole(role);
+    dot.onclick = () => { toggleRole(role); refocus('.node[data-role="' + role + '"] .dot'); };
     node.appendChild(dot);
     node.appendChild(makeSeg(GATES, S.gate[role], 'gateSeg', (v) => { S.gate[role] = v; save(); }, 'gate ' + role));
-    const grip = el('button', 'grip', { 'aria-hidden': 'true', tabindex: '-1' });
+    const grip = el('span', 'grip', { 'aria-hidden': 'true' });
     grip.appendChild(icon('ic-drag', 'sm dots'));
     node.appendChild(grip);
     node.addEventListener('dragstart', (e) => { dragRole = role; node.dataset.drag = '1'; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; });
@@ -692,9 +759,13 @@ function renderChain() {
     node.addEventListener('dragover', (e) => { if (dragRole) e.preventDefault(); });
     node.addEventListener('drop', (e) => { e.preventDefault(); if (dragRole) placeBefore(dragRole, role); dragRole = null; });
     node.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); move(role, -1); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); move(role, 1); }
-      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRole(role); }
+      // Keys pressed on the stage's own buttons (toggle, gate options) are theirs, not the stage's.
+      if (e.target !== node) return;
+      const rtl = document.documentElement.dir === 'rtl';
+      const back = rtl ? 'ArrowRight' : 'ArrowLeft', fwd = rtl ? 'ArrowLeft' : 'ArrowRight';
+      if (e.key === back || e.key === 'ArrowUp') { e.preventDefault(); move(role, -1); }
+      else if (e.key === fwd || e.key === 'ArrowDown') { e.preventDefault(); move(role, 1); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRole(role); refocus('.node[data-role="' + role + '"]'); }
     });
     slot.appendChild(node);
     chain.appendChild(slot);
@@ -702,23 +773,35 @@ function renderChain() {
   const addSlot = el('div', 'slot');
   addSlot.appendChild(el('div', 'link', { 'data-on': '0', 'aria-hidden': 'true' }));
   const add = el('div', 'node');
-  const plus = el('button', 'dot', { id: 'btnAddRole', 'aria-label': 'add stage', 'aria-expanded': 'false' });
+  const plus = el('button', 'dot', { id: 'btnAddRole', 'aria-label': 'add stage', 'aria-controls': 'palette',
+    'aria-expanded': $('palette').dataset.open === '1' ? 'true' : 'false' });
   plus.appendChild(icon('ic-plus', 'lg'));
-  plus.onclick = () => {
-    const open = $('palette').dataset.open !== '1';
-    $('palette').dataset.open = open ? '1' : '0';
-    plus.setAttribute('aria-expanded', open ? 'true' : 'false');
-  };
+  plus.onclick = () => setPalette($('palette').dataset.open !== '1');
   add.appendChild(plus);
   addSlot.appendChild(add);
   chain.appendChild(addSlot);
 }
 
 /* ============================== palette ============================== */
+/* Closed, the sheet sits off-screen: inert so Tab never lands in it. Open, it
+   takes focus; Escape closes it and returns focus to the + button. */
+function setPalette(open, returnFocus) {
+  const pal = $('palette');
+  pal.dataset.open = open ? '1' : '0';
+  pal.inert = !open;
+  pal.setAttribute('aria-hidden', open ? 'false' : 'true');
+  const plus = $('btnAddRole');
+  if (plus) plus.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) refocus('#palette button');
+  else if (returnFocus && plus) plus.focus();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('palette').dataset.open === '1') { e.preventDefault(); setPalette(false, true); }
+});
 function renderPalette() {
   const pal = $('palette');
   pal.textContent = '';
-  for (const role of ORDER) {
+  ORDER.forEach((role, i) => {
     const b = el('button', 'pal', { 'data-on': S.on[role] ? '1' : '0', 'aria-label': 'append ' + role, 'aria-pressed': S.on[role] ? 'true' : 'false' });
     b.appendChild(icon(ROLES[role].icon));
     b.onclick = () => {
@@ -727,9 +810,10 @@ function renderPalette() {
       S.on[role] = true;
       save();
       renderChain(); renderPalette();
+      refocus('#palette button:nth-child(' + (i + 1) + ')');
     };
     pal.appendChild(b);
-  }
+  });
 }
 
 /* ============================== controls ============================== */
@@ -753,6 +837,7 @@ $('segGateMode').querySelectorAll('button').forEach((b) => {
     try { await post('/api/settings', { gateMode: S.gateMode }); } catch { flash($('btnSave'), 'bad'); }
   };
 });
+radioKeys($('segGateMode'));
 /* The gear collapses/expands the controls card (there is no second sheet:
    every setting Studio owns is already on this one card). */
 $('btnSheet').onclick = () => {
@@ -842,7 +927,7 @@ $('btnRun').onclick = async () => {
     await post('/api/run', { flow: name, task: INTENTS[S.intent].task, gates: 'dashboard', permissionMode: 'dangerous' });
     runCursor = 0;
   } catch (e) {
-    if (e.message === 'no_executor' || e.message === 'cli_not_authenticated') { execState = 'none'; $('execDot').dataset.st = 'none'; $('btnRun').dataset.st = 'none'; }
+    if (e.message === 'no_executor' || e.message === 'cli_not_authenticated') { execState = 'none'; setExecDot('none'); $('btnRun').dataset.st = 'none'; }
     flash($('btnRun'), 'bad');
   }
 };
@@ -877,12 +962,17 @@ function renderProjects(d) {
   }
 }
 
+/* The executor dot's colour is its state; screen readers get the same as words. */
+function setExecDot(st) {
+  $('execDot').dataset.st = st;
+  label($('execDot'), 'executor ' + st);
+}
 function renderExec(d) {
   if (d.queuePending) execState = 'queue';
   else if ((d.executors && d.executors.acp) || (d.daemon && d.daemon.alive)) execState = 'ready';
   else if (cliReady) execState = 'ready';
   else execState = 'none';
-  $('execDot').dataset.st = execState;
+  setExecDot(execState);
   if (!runActive) $('btnRun').dataset.st = execState === 'none' ? 'none' : 'idle';
 }
 
@@ -912,10 +1002,11 @@ async function fetchCli() {
 async function fetchRun() {
   try {
     const d = await api('/api/run?since=' + runCursor);
-    if (!d.exists) { runActive = false; setRunIcon('ic-play'); return; }
+    if (!d.exists) { runActive = false; setRunIcon('ic-play'); label($('btnRun'), 'run'); return; }
     if (d.lines && d.lines.length) runCursor = d.next;
     runActive = !!d.active;
     setRunIcon(runActive ? 'ic-stop' : 'ic-play');
+    label($('btnRun'), runActive ? 'stop' : 'run');
     $('btnRun').dataset.st = runActive ? 'active' : (execState === 'none' ? 'none' : 'idle');
   } catch { /* server unreachable - keep the last known icon state */ }
 }
@@ -930,7 +1021,7 @@ async function poll() {
     if (d.settings && GATE_MODES.includes(d.settings.gateMode) && d.settings.gateMode !== S.gateMode) {
       S.gateMode = d.settings.gateMode; save(); renderControls();
     }
-  } catch { $('execDot').dataset.st = 'unknown'; }
+  } catch { setExecDot('unknown'); }
   await fetchRun();
 }
 
