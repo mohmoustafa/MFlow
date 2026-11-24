@@ -125,8 +125,8 @@ ${heading('Heading3', 'heading 3', 25, '14181F', 240)}
   const core = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <dc:title>${esc(opts.title || 'document')}</dc:title>
-<dc:creator>FlowForge convert-doc.mjs</dc:creator>
-<cp:lastModifiedBy>FlowForge convert-doc.mjs</cp:lastModifiedBy>
+<dc:creator>Malomatia Flow convert-doc.mjs</dc:creator>
+<cp:lastModifiedBy>Malomatia Flow convert-doc.mjs</cp:lastModifiedBy>
 <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
 </cp:coreProperties>`;
 

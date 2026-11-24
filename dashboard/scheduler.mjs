@@ -114,6 +114,7 @@ export class JobStore {
     const item = {
       id: newId(), project: spec.project, flow: spec.flow, task: String(spec.task || '').trim(),
       gates: spec.gates || 'dashboard', speed: spec.speed || '', size: spec.size || '', status: 'queued',
+      provider: spec.provider || '', permissionMode: spec.permissionMode || '',
       createdAt: new Date().toISOString(), scheduleId: spec.scheduleId || null,
     };
     this.queue.push(item);
@@ -145,6 +146,7 @@ export class JobStore {
     const s = {
       id: newId(), project: spec.project, flow: spec.flow, task: String(spec.task || '').trim(),
       gates: spec.gates || 'auto', speed: spec.speed || '', size: spec.size || '', enabled: spec.enabled !== false, repeat,
+      provider: spec.provider || '', permissionMode: spec.permissionMode || '',
       nextAt, lastAt: null, lastStatus: null, createdAt: new Date().toISOString(),
     };
     this.schedules.push(s);

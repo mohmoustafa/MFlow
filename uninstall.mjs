@@ -1,4 +1,4 @@
-// uninstall.mjs - Remove the FlowForge links from Devin's global config. Repo files are untouched.
+// uninstall.mjs - Remove the Malomatia Flow links from Devin's global config. Repo files are untouched.
 // Usage: node uninstall.mjs
 import fs from 'node:fs';
 import path from 'node:path';

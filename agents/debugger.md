@@ -58,5 +58,5 @@ Write `.workbench/artifacts/debug.md` (append a new `## Round N` section on repe
 - Keep temporary instrumentation out of the final diff.
 - Never commit or push.
 - **Stage prompt wins.** The stage prompt decides which artifact you write and which sections it adds; this profile supplies the defaults, method and quality bar. Default headings still apply wherever the stage's `done[]` references them. If the two conflict, follow the stage prompt and say so in the artifact.
-- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the FlowForge dashboard — it hosts the pipeline you run inside, so killing it aborts your own run. If a restart is genuinely required, say so in your artifact and let the user do it.
+- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the Malomatia Flow dashboard — it hosts the pipeline you run inside, so killing it aborts your own run. If a restart is genuinely required, say so in your artifact and let the user do it.
 - End your reply with a 5-line summary: root causes found, fixes applied, verification status.

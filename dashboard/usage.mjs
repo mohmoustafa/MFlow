@@ -15,6 +15,7 @@
 // typed prompt, so the run forecast is calibrated on that ground truth: what
 // your past runs of the same flow actually cost.
 import fs from 'node:fs';
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { agentSessionsDbCandidates, samePath } from '../scripts/lib/platform.mjs';
 
 // The first line of the dashboard's prompt-generator instruction. server.mjs
@@ -225,19 +226,62 @@ function buildSessions(db) {
   return out.sort((a, b) => b.createdMs - a.createdMs);
 }
 
+// The full read of a busy machine's log (1-2 GB is normal) takes seconds of
+// synchronous SQLite work. Done on the server's main thread it froze EVERY
+// request - flows, state, gates - for that long, and Devin rewrites the file
+// all the time while a session is open. So the scan runs in a worker thread,
+// and a stale cache is served at once while the refresh happens behind it.
+const MIN_REFRESH_MS = 30000;
 let cache = null; // { stamp, at, result }
-// The log is 100s of MB on a busy machine: re-read only when it changed, and
-// then at most every few seconds.
+let inflight = null;
+
+function scanOffThread() {
+  return new Promise((resolve) => {
+    let worker;
+    try {
+      worker = new Worker(new URL(import.meta.url), { workerData: { ffTask: 'devin-sessions' } });
+    } catch {
+      withDb(buildSessions).then(resolve); // no worker support: inline, as before
+      return;
+    }
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+    worker.once('message', done);
+    worker.once('error', (e) => done({ ok: false, reason: 'unreadable', error: String(e.message || e).slice(0, 200) }));
+    worker.once('exit', () => done({ ok: false, reason: 'unreadable', error: 'usage worker exited early' }));
+  });
+}
+
+function refreshSessions(stamp) {
+  if (!inflight) {
+    inflight = scanOffThread().then((res) => {
+      const result = res.ok
+        ? { available: true, file: res.file, sessions: res.value }
+        : { available: false, reason: res.reason, message: UNAVAILABLE[res.reason] || res.reason, sessions: [] };
+      cache = { stamp, at: Date.now(), result };
+      return result;
+    }).finally(() => { inflight = null; });
+  }
+  return inflight;
+}
+
 export async function readDevinSessions({ force = false } = {}) {
   const file = sessionsDbPath();
   const stamp = file ? `${file}|${mtime(file)}|${mtime(file + '-wal')}` : 'none';
-  if (cache && !force && (cache.stamp === stamp || Date.now() - cache.at < 8000)) return cache.result;
-  const res = await withDb(buildSessions);
-  const result = res.ok
-    ? { available: true, file: res.file, sessions: res.value }
-    : { available: false, reason: res.reason, message: UNAVAILABLE[res.reason] || res.reason, sessions: [] };
-  cache = { stamp, at: Date.now(), result };
-  return result;
+  if (force || !cache) return refreshSessions(stamp);
+  // Unchanged, or changed but refreshed moments ago: the cache is the answer.
+  if (cache.stamp === stamp || Date.now() - cache.at < MIN_REFRESH_MS) return cache.result;
+  // Changed: answer now with what we have, bring it up to date in the background.
+  refreshSessions(stamp);
+  return cache.result;
+}
+
+// Worker entry: the same module, asked to do the one heavy scan and report back.
+if (!isMainThread && workerData && workerData.ffTask === 'devin-sessions') {
+  withDb(buildSessions).then(
+    (res) => parentPort.postMessage(res),
+    (e) => parentPort.postMessage({ ok: false, reason: 'unreadable', error: String(e.message || e).slice(0, 200) }),
+  );
 }
 
 // One session, fresh - for the live counter of a run in progress.
@@ -267,7 +311,7 @@ export async function findSessionFor(project, sinceMs) {
 }
 
 // The dashboard's own run log adds what the session log cannot know: that a
-// session WAS a FlowForge run (even if Devin rewrote the first prompt), and how
+// session WAS a Malomatia Flow run (even if Devin rewrote the first prompt), and how
 // it ended.
 export function linkRuns(sessions, runs = []) {
   const byId = new Map(sessions.map((s) => [s.id, s]));
@@ -406,7 +450,7 @@ export const fmtAcu = (n) => { const v = Number(n) || 0; return v >= 100 ? v.toF
 
 const REPORT_TEXT = {
   en: {
-    title: 'Usage report', scope: 'Scope', all: 'all tools and sessions', ff: 'FlowForge runs and prompt generation only',
+    title: 'Usage report', scope: 'Scope', all: 'all tools and sessions', ff: 'Malomatia Flow runs and prompt generation only',
     generated: 'Generated', source: "Sources: Devin's local session log and each tool's own usage records - exact tokens per model call.",
     byTool: 'By tool', tool: 'Tool',
     summary: 'Summary', metric: 'Metric', value: 'Value', acu: 'ACUs spent', usd: 'Cost (USD)', at: 'at',
@@ -421,7 +465,7 @@ const REPORT_TEXT = {
     usdDefault: 'Dollars at Devin\'s list-price conversion of ${rate} per ACU (price list not reachable for verification).',
   },
   ar: {
-    title: 'تقرير الاستخدام', scope: 'النطاق', all: 'كل الأدوات والجلسات', ff: 'تشغيلات FlowForge وتوليد البرومبت بس',
+    title: 'تقرير الاستخدام', scope: 'النطاق', all: 'كل الأدوات والجلسات', ff: 'تشغيلات Malomatia Flow وتوليد البرومبت بس',
     generated: 'اتعمل في', source: 'المصادر: سجل جلسات Devin المحلي وسجلات استهلاك كل أداة — التوكنز بالظبط لكل نداء موديل.',
     byTool: 'حسب الأداة', tool: 'الأداة',
     summary: 'الملخص', metric: 'المقياس', value: 'القيمة', acu: 'الـ ACU المصروفة', usd: 'التكلفة (دولار)', at: 'بسعر',
@@ -611,7 +655,7 @@ export async function refreshPrices({ cacheFile = null, maxAgeMs = 24 * 3600 * 1
     try {
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), timeoutMs);
-      const res = await fetch(PRICE_SOURCE, { signal: ctl.signal, headers: { 'User-Agent': 'FlowForge' } });
+      const res = await fetch(PRICE_SOURCE, { signal: ctl.signal, headers: { 'User-Agent': 'Malomatia Flow' } });
       clearTimeout(timer);
       const table = res.ok ? parsePriceTable(await res.text()) : null;
       if (table) {
@@ -633,6 +677,33 @@ export function priceFor(model, table, tier = 'enterprise') {
   return row ? (row[tier] || row.enterprise || row.pro || null) : null;
 }
 export const callUsd = (c, p) => (c.input * p[0] + c.output * p[1] + c.cacheWrite * p[2] + c.cacheRead * p[3]) / 1e6;
+
+// Public list prices (USD per 1M tokens: input, output, cache-write, cache-
+// read) for models that can run stages off Devin. Versioned slugs are matched
+// by prefix so `claude-sonnet-4-5` prices like `claude-sonnet`. Deliberately a
+// small in-repo table: the estimate must work offline and every provider's
+// list price is public information.
+export const PROVIDER_USD = [
+  ['claude-opus', [15, 75, 18.75, 1.5]],
+  ['claude-sonnet', [3, 15, 3.75, 0.3]],
+  ['claude-haiku', [0.8, 4, 1, 0.08]],
+  ['gpt-5.1-codex', [1.25, 10, 0, 0.125]],
+  ['gpt-5-codex', [1.25, 10, 0, 0.125]],
+  ['codex-mini', [1.5, 6, 0, 0.375]],
+  ['gpt-5', [1.25, 10, 0, 0.125]],
+  ['gpt-4.1', [2, 8, 0, 0.5]],
+  ['gemini-3-pro', [2, 12, 0, 0.5]],
+  ['gemini-2.5-pro', [1.25, 10, 0, 0.31]],
+  ['gemini-3-flash', [0.5, 3, 0, 0.125]],
+  ['gemini-2.5-flash', [0.3, 2.5, 0, 0.075]],
+  ['gemini-flash', [0.3, 2.5, 0, 0.075]],
+];
+export function usdPriceFor(model) {
+  const m = String(model || '').toLowerCase();
+  if (!m) return null;
+  const hit = PROVIDER_USD.find(([prefix]) => m === prefix || m.startsWith(prefix + '-') || m.startsWith(prefix));
+  return hit ? hit[1] : null;
+}
 
 // Price every logged call at the official table, per tier, and keep the tier
 // under which the ratio list-price / committed-ACU is one constant. That
@@ -683,7 +754,16 @@ const SCRIPT_ARTIFACT_TOKENS = 3000;
 export const SPEED_OVERRIDES = {
   fast: { model: 'swe-1-7-lightning', testerModel: 'gemini-3-7-flash-high', effort: 'low', maxLoops: 1 },
   balanced: { model: 'claude-sonnet-5-high', effort: 'medium' },
-  quality: { model: 'claude-opus-5-max', effort: 'max' },
+  // Mirrors QUALITY_ROLES in scripts/lib/state.mjs: max where reasoning
+  // decides the outcome, faster models for review and commit.
+  quality: {
+    model: 'claude-opus-5-max', effort: 'max',
+    roles: {
+      analyst: { model: 'claude-opus-5-high', effort: 'high' }, researcher: { model: 'claude-opus-5-high', effort: 'high' },
+      tester: { model: 'claude-sonnet-5-high', effort: 'high' }, critic: { model: 'claude-sonnet-5-high', effort: 'high' },
+      shipper: { model: 'swe-1-7', effort: 'low' },
+    },
+  },
 };
 
 const median = (v) => { const q = quantiles(v); return q ? q.p50 : null; };
@@ -724,7 +804,7 @@ function contextCost(n, open, growth, out) {
 
 export function pipelineEstimate({
   flowDef, speed = '', parts = [], promptTokens = 0, baseline = null, rates = {}, account = null, shape,
-  prices = null, tier = 'enterprise', usdPerAcu = DEFAULT_USD_PER_ACU,
+  prices = null, tier = 'enterprise', usdPerAcu = DEFAULT_USD_PER_ACU, provider = '',
 }) {
   const stagesDef = (flowDef && Array.isArray(flowDef.stages)) ? flowDef.stages : [];
   const sp = SPEED_OVERRIDES[speed] || null;
@@ -737,8 +817,10 @@ export function pipelineEstimate({
   // input when the model has no cache-write price), re-read context is a cache
   // read, replies are output. Anything else falls back to the rate measured on
   // this account.
-  const cost = (model, c, fallbackRate) => {
-    const p = priceFor(model, prices, tier);
+  const cost = (model, c, fallbackRate, foreign) => {
+    // Devin's table prices anything it hosts; the public list only applies to
+    // stages routed to another provider's CLI.
+    const p = priceFor(model, prices, tier) || (foreign ? usdPriceFor(model) : null);
     if (p) {
       const usd = (c.fresh * (p[2] > 0 ? p[2] : p[0]) + c.cacheRead * p[3] + c.output * p[1]) / 1e6;
       return { usd, acu: usd / usdPerAcu, basis: 'price-list', price: p };
@@ -756,18 +838,22 @@ export function pipelineEstimate({
     let model = st.model || '';
     let effort = st.effort || 'medium';
     if (sp && !isScript) {
-      model = st.agent === 'tester' && sp.testerModel ? sp.testerModel : sp.model;
-      effort = sp.effort;
+      const role = sp.roles && sp.roles[st.agent];
+      model = role ? role.model : st.agent === 'tester' && sp.testerModel ? sp.testerModel : sp.model;
+      effort = role ? role.effort : sp.effort;
     }
     const r = isScript ? null : price(model);
     const calls = isScript ? 0 : Math.max(2, Math.round((ROLE_CALLS[st.agent] || 12) * (EFFORT_MULT[effort] || 1)));
     const out = Math.round(shape.outPerCall * (ROLE_OUTPUT[st.agent] || 1));
     const open = base + (tok[`agent:${st.agent}`] || 0) + estimateTokens(st.prompt || '') + promptTokens + artifacts;
     const c = contextCost(calls, open, shape.growthPerCall, out);
-    const k = isScript ? { usd: null, acu: null, basis: null, price: null } : cost(model, c, r);
+    const stageProvider = st.provider || provider || '';
+    const k = isScript ? { usd: null, acu: null, basis: null, price: null }
+      : cost(model, c, r, !!stageProvider && stageProvider !== 'devin');
     if (!retryOnly) artifacts += isScript ? SCRIPT_ARTIFACT_TOKENS : ARTIFACT_TOKENS;
     return {
       id: st.id, title: st.title || st.id, titleAr: st.titleAr || '', agent: st.agent || '',
+      provider: isScript ? '' : (st.provider || provider || ''),
       kind: isScript ? 'script' : retryOnly ? 'retry-only' : 'agent',
       model: isScript ? '' : model, effort: isScript ? '' : effort,
       calls: c.calls, tokens: Math.round(c.tokens), fresh: Math.round(c.fresh), cacheRead: Math.round(c.cacheRead), output: Math.round(c.output),
@@ -785,7 +871,7 @@ export function pipelineEstimate({
   const oc = contextCost(orchCalls, orchOpen, Math.round(shape.growthPerCall / 2), shape.outPerCall);
   // The main session runs on the account's own model choice, so it is priced
   // at the account's measured average.
-  const ok = cost('', oc, account);
+  const ok = cost('', oc, account, !!provider && provider !== 'devin');
   const orchestrator = {
     id: 'orchestrator', kind: 'orchestrator', calls: oc.calls, tokens: Math.round(oc.tokens),
     fresh: Math.round(oc.fresh), cacheRead: Math.round(oc.cacheRead), output: Math.round(oc.output),
@@ -834,7 +920,7 @@ function quantiles(values) {
 // Everything the pre-run chip shows. `parts` are the texts every run of this
 // flow sends besides the task (skill, role profiles, stage prompts);
 // `stageCounts` maps flow name -> number of stages, for the cross-flow fallback.
-export function estimateRun({ flow, task, flowDef, parts = [], sessions = [], stageCounts = {}, agentModels = {}, speed = '', prices = null }) {
+export function estimateRun({ flow, task, flowDef, parts = [], sessions = [], stageCounts = {}, agentModels = {}, speed = '', prices = null, provider = '' }) {
   const promptTokens = estimateTokens(task);
   const overhead = parts.map((p) => ({ name: p.name, tokens: estimateTokens(p.text) }));
   const overheadTokens = overhead.reduce((a, p) => a + p.tokens, 0);
@@ -858,6 +944,7 @@ export function estimateRun({ flow, task, flowDef, parts = [], sessions = [], st
     const sent = (baseline ? baseline.p50 : 0) + overheadTokens + promptTokens;
     return {
       id: st.id, title: st.title || st.id, titleAr: st.titleAr || '', agent: st.agent || '', model,
+      provider: st.provider || provider || '',
       rate: r ? r.rate : null, acuPerTurn: r ? r.acuPerTurn : null, basis: r ? r.basis : null,
       // What opening this stage costs before the agent reads anything:
       // system context + skill/role text + the task, once, at this model's rate.
@@ -897,7 +984,7 @@ export function estimateRun({ flow, task, flowDef, parts = [], sessions = [], st
   const dollars = dollarRate(sessions, prices);
   const pipeArgs = {
     flowDef, parts, promptTokens, baseline: baseline ? baseline.p50 : null, rates, account, shape,
-    prices, tier: dollars.tier || 'enterprise', usdPerAcu: dollars.usdPerAcu,
+    prices, tier: dollars.tier || 'enterprise', usdPerAcu: dollars.usdPerAcu, provider,
   };
   const pipeline = pipelineEstimate({ ...pipeArgs, speed });
   if (forecast && forecast.acu) {

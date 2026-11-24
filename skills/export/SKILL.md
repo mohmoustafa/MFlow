@@ -1,6 +1,6 @@
 ---
 name: export
-description: Export a document or artifact to PDF, Word, Excel, CSV, HTML, TXT, Markdown or JSON using the FlowForge converter (zero dependencies, works in any project)
+description: Export a document or artifact to PDF, Word, Excel, CSV, HTML, TXT, Markdown or JSON using the Malomatia Flow converter (zero dependencies, works in any project)
 argument-hint: "<file or artifact name> [pdf|docx|xlsx|csv|html|txt|md|json] [--out <path>]"
 allowed-tools:
   - read

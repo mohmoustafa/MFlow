@@ -152,7 +152,7 @@ export function startAcp({ cwd, prompt, model, cliPath = process.env.DEVIN_CLI |
   try {
     const init = await request('initialize', {
       protocolVersion: 1,
-      clientInfo: { name: 'flowforge-dashboard', title: 'FlowForge', version: '1.0.0' },
+      clientInfo: { name: 'malomatia-flow-dashboard', title: 'Malomatia Flow', version: '1.0.0' },
       clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
     });
 

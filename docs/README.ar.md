@@ -10,13 +10,13 @@
 **ويندوز** (PowerShell):
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"
+iwr -useb https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"
 ```
 
 **ماك / لينكس**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs
+curl -fsSL https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs
 ```
 
 الأمر ده بينزّل FlowForge، ويربطه بـDevin لو موجود، ويفتح الداشبورد — **من غير npm install ولا أي مكتبات**.
@@ -35,11 +35,11 @@ curl -fsSL https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs
 أو ثبّت أمر `flowforge` (مختصره `ff`) يشتغل من أي فولدر — مرة واحدة بس:
 
 ```powershell
-npm i -g flowforge-cli        # أو جوّا نسخة git clone: npm link
+npm i -g malomatia-flow        # أو جوّا نسخة git clone: npm link
 ```
 
-أو من غير تسطيب خالص: `npx flowforge-cli`
-، أو أمر عالمي: `npm i -g flowforge-cli` وبعدين `flowforge` من جوّا أي مشروع (الفولدر اللي واقف فيه بيبقى هو المشروع).
+أو من غير تسطيب خالص: `npx malomatia-flow`
+، أو أمر عالمي: `npm i -g malomatia-flow` وبعدين `flowforge` من جوّا أي مشروع (الفولدر اللي واقف فيه بيبقى هو المشروع).
 
 ## الفكرة في سطرين
 

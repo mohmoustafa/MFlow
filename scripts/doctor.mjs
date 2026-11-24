@@ -1,4 +1,4 @@
-// doctor.mjs - `ff doctor`: check every moving part of a FlowForge install and
+// doctor.mjs - `ff doctor`: check every moving part of a Malomatia Flow install and
 // say exactly what to do about each problem. `--fix` repairs what can be
 // repaired here (re-runs the wiring) and checks again.
 //
@@ -65,6 +65,44 @@ async function check() {
     }
   }
 
+  // 2b. Every other runnable agent CLI: where installed, report per-module
+  // wiring as linked | copied | generated | missing so a stale hand copy is
+  // visible instead of silently serving an old flow.
+  try {
+    const { PROVIDERS, RUN_PROVIDERS, detectProvider } = await import('../dashboard/providers.mjs');
+    const { providerRoots } = await import('./lib/platform.mjs');
+    const roots = providerRoots();
+    for (const id of RUN_PROVIDERS.filter((x) => x !== 'devin')) {
+      const det = await detectProvider(id).catch(() => null);
+      if (!det || !det.installed) continue;
+      const ovr = process.env['FF_PROVIDER_HOME_' + id.toUpperCase()];
+      const rr = ovr ? Object.fromEntries(Object.keys(roots).map((k) => [k, ovr])) : roots;
+      const parts = [];
+      let broken = 0;
+      for (const mod of PROVIDERS[id].userModules || []) {
+        const root = rr[mod.base];
+        if (!root) continue;
+        const p = path.join(root, ...mod.rel);
+        if (mod.junctionOf || (mod.kind === 'agent' && mod.type === 'dir')) {
+          const target = path.join(ROOT, mod.junctionOf || 'agents');
+          let st = 'missing';
+          try {
+            st = fs.realpathSync(p) === fs.realpathSync(target) ? 'linked'
+              : fs.existsSync(p) ? 'copied' : 'missing';
+          } catch {}
+          if (st !== 'linked') broken++;
+          parts.push(`${mod.junctionOf || 'agents'}:${st}`);
+        } else if (mod.kind === 'prompt' && mod.type === 'dir') {
+          const ext = (mod.exts || ['.md'])[0];
+          const have = fs.existsSync(p) && fs.readdirSync(p).some((f) => f.endsWith(ext));
+          if (!have) broken++;
+          parts.push(`commands:${have ? 'generated' : 'missing'}`);
+        }
+      }
+      if (parts.length) add(broken ? 'warn' : 'ok', `Wiring: ${id}`, parts.join(', '), broken ? 'ff install' : '');
+    }
+  } catch { /* provider wiring is additive - it never breaks the check */ }
+
   // 3. Content integrity: skills, agents, flows
   const skills = fs.readdirSync(path.join(ROOT, 'skills')).filter((n) => fs.existsSync(path.join(ROOT, 'skills', n, 'SKILL.md')));
   const badSkills = skills.filter((n) => { const fm = frontmatter(fs.readFileSync(path.join(ROOT, 'skills', n, 'SKILL.md'), 'utf8')); return !fm || !fm.name; });
@@ -102,9 +140,9 @@ async function check() {
     writeState(tmp, st);
     const back = readState(tmp);
     const okEngine = back.stages.find((s) => s.id === 'code').status === 'done' && back.loops.test === 1;
-    add(okEngine ? 'ok' : 'fail', 'State engine', okEngine ? 'atomic write + read-back verified' : 'read-back mismatch', 'reinstall FlowForge (files may be damaged)');
+    add(okEngine ? 'ok' : 'fail', 'State engine', okEngine ? 'atomic write + read-back verified' : 'read-back mismatch', 'reinstall Malomatia Flow (files may be damaged)');
   } catch (e) {
-    add('fail', 'State engine', e.message, 'reinstall FlowForge (files may be damaged)');
+    add('fail', 'State engine', e.message, 'reinstall Malomatia Flow (files may be damaged)');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 
   // 5. Writable install (dashboard keeps local state next to the code)
@@ -159,7 +197,7 @@ if (JSON_OUT) {
 } else {
   const icon = { ok: '\x1b[32m✓\x1b[0m', warn: '\x1b[33m!\x1b[0m', fail: '\x1b[31m✗\x1b[0m', info: '\x1b[36m·\x1b[0m' };
   const width = Math.max(...results.map((r) => r.name.length)) + 2;
-  console.log(`FlowForge doctor - ${ROOT}\n`);
+  console.log(`Malomatia Flow doctor - ${ROOT}\n`);
   for (const r of results) {
     console.log(`  ${icon[r.status]} ${r.name.padEnd(width)}${r.detail}`);
     if (r.status !== 'ok' && r.fix) console.log(`    ${' '.repeat(width)}-> ${r.fix}`);

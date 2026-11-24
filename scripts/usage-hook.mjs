@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// usage-hook.mjs - the hook command FlowForge adds to a tool that reports its
+// usage-hook.mjs - the hook command Malomatia Flow adds to a tool that reports its
 // own token usage through hooks (Cursor's `stop` event). It records the usage
 // numbers of one event and nothing else - no prompt, no response, no email -
 // and never blocks or fails the tool: every error is swallowed, the reply is

@@ -13,12 +13,14 @@
 // Flags: --gates=auto|ai|dashboard|terminal  --speed=fast|balanced|quality
 //        --size=auto|tiny|small|full  --direct  --port=4820  --project=DIR
 //        --permission=dangerous|accept-edits|smart|normal
+//        --provider=devin|claude|codex|gemini|copilot|opencode|auggie|cursor|auto
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { devinCliCandidates, whichSync } from './lib/platform.mjs';
 import { readState, summary } from './lib/state.mjs';
+import { PROVIDER_IDS, providerRunsStages } from '../dashboard/providers.mjs';
 
 const WORKBENCH = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const argv = process.argv.slice(2);
@@ -37,9 +39,12 @@ const project = path.resolve(value('project', process.cwd()));
 const port = Number(value('port', 4820)) || 4820;
 const speed = value('speed', '');
 const size = value('size', 'auto');
+const provider = value('provider', '');
 
-if (!flow) die('usage: ff run <flow> "<task>" [--gates=auto|ai] [--speed=fast|balanced|quality] [--size=auto|tiny|small|full] [--direct]');
+if (!flow) die('usage: ff run <flow> "<task>" [--gates=auto|ai] [--speed=fast|balanced|quality] [--size=auto|tiny|small|full] [--provider=<id>] [--direct]');
 if (!/^[\w.-]+$/.test(flow)) die(`bad flow name: ${flow}`);
+if (provider && provider !== 'auto' && !PROVIDER_IDS.includes(provider)) die(`unknown provider "${provider}" - have: ${PROVIDER_IDS.join(', ')}`);
+if (provider && provider !== 'auto' && provider !== 'devin' && !providerRunsStages(provider)) die(`provider "${provider}" cannot run flows (no headless CLI)`);
 const flowFile = path.join(WORKBENCH, 'flows', `${flow}.json`);
 if (flow !== 'resume' && !fs.existsSync(flowFile)) {
   const have = fs.readdirSync(path.join(WORKBENCH, 'flows')).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
@@ -60,16 +65,54 @@ async function viaDashboard() {
   const gates = GATES.includes(value('gates', '')) ? value('gates', '') : 'dashboard';
   const res = await fetch(`${base}/api/run`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project, flow, task, gates, speed: speed || 'flow', size, permissionMode: value('permission', 'dangerous'), enqueue: true }),
+    body: JSON.stringify({ project, flow, task, gates, speed: speed || 'flow', size, permissionMode: value('permission', 'dangerous'), provider: provider || undefined, enqueue: true }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) die(`dashboard refused the run: ${body.error || res.status}`);
-  console.log(`FlowForge: ${flow} ${body.mode === 'queue' ? `queued (position ${body.position || 1})` : `started (${body.mode})`} on ${project}`);
+  console.log(`Malomatia Flow: ${flow} ${body.mode === 'queue' ? `queued (position ${body.position || 1})` : `started (${body.mode})`} on ${project}`);
   console.log(`  watch and approve gates: ${base}/#overview`);
   return true;
 }
 
-// 2. No dashboard: drive the Devin CLI here.
+// 2a. No dashboard, a named engine provider: the multi-provider engine
+// (dashboard/runner.mjs) walks the flow itself - one headless CLI call per
+// stage. Gates wait on .workbench/commands.json (the dashboard answers them
+// when it is up; with --gates=auto nothing waits at all).
+function fileGateWait(stage, question, questionAr) {
+  const file = path.join(project, '.workbench', 'commands.json');
+  fs.writeFileSync(file, JSON.stringify({
+    gate: { stage, question, questionAr, requestedAt: new Date().toISOString() }, response: null,
+  }, null, 2), 'utf8');
+  console.log(`[gate] ${stage}: ${question}`);
+  console.log(`[gate] approve from the dashboard, or write {"response":{"stage":"${stage}","decision":"approve"}} into ${file}`);
+  return new Promise((resolve) => {
+    const t = setInterval(() => {
+      try {
+        const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (j && j.response && j.response.decision) { clearInterval(t); resolve({ decision: j.response.decision, note: j.response.note || '' }); }
+      } catch { /* wait on */ }
+    }, 2000);
+  });
+}
+
+async function engineDirect() {
+  const { runPipeline } = await import('../dashboard/runner.mjs');
+  const gates = GATES.includes(value('gates', '')) ? value('gates') : 'auto';
+  const res = await runPipeline({
+    project,
+    spec: {
+      flow, task, gates, speed: speed || '', size,
+      provider, permissionMode: value('permission', 'dangerous'),
+    },
+    push: (line) => console.log(line),
+    shouldStop: () => false,
+    requestGate: fileGateWait,
+  });
+  if (res.summary) console.log(`\n${res.summary}`);
+  process.exit(res.code === 0 ? 0 : 1);
+}
+
+// 2b. No dashboard: drive the Devin CLI here.
 function devinCli() {
   if (process.env.DEVIN_CLI) return process.env.DEVIN_CLI;
   return whichSync('devin') || devinCliCandidates().find((p) => fs.existsSync(p)) || null;
@@ -86,7 +129,7 @@ function direct() {
       : `/flow ${flow} "${task}" --gates=${gates}${extra} --headless=cli`;
   const args = ['--permission-mode', value('permission', 'dangerous'), '--respect-workspace-trust', 'false', '-p', prompt];
   const viaNode = /\.(mjs|js)$/i.test(cli);
-  console.log(`FlowForge: ${prompt}`);
+  console.log(`Malomatia Flow: ${prompt}`);
   console.log(`  project: ${project}   (gates: ${gates}; Ctrl+C stops)`);
   const child = spawn(viaNode ? process.execPath : cli, viaNode ? [cli, ...args] : args, { cwd: project, stdio: 'inherit' });
   child.on('error', (e) => die(`could not start the Devin CLI: ${e.message}`));
@@ -96,4 +139,8 @@ function direct() {
   });
 }
 
-if (flag('direct') || !(await viaDashboard())) direct();
+if (flag('direct') || !(await viaDashboard())) {
+  if (provider && provider !== 'devin' && provider !== 'auto' && providerRunsStages(provider) && flow !== 'resume') await engineDirect();
+  else if (provider && provider !== 'devin' && provider !== 'auto') die(`"${provider}" runs flows through the dashboard engine - start it with \`ff\` or use the /api/run endpoint`);
+  else direct();
+}

@@ -1,4 +1,4 @@
-// run-tests.mjs - Self-contained test suite for the FlowForge dashboard.
+// run-tests.mjs - Self-contained test suite for the Malomatia Flow dashboard.
 // Spawns the server on a scratch project + spare port, exercises every API
 // endpoint, validates the UI (syntax + i18n coverage), and checks the live
 // file-watcher feed and the gate protocol end to end.
@@ -407,7 +407,7 @@ console.log('# static checks');
   ok('platform: npm is a .cmd shim only on Windows',
     P.npmBin('npm', 'win32') === 'npm.cmd' && P.npmBin('npm', 'linux') === 'npm');
   ok('platform: a fresh install lands somewhere sane on every OS',
-    P.PLATFORMS.every((p) => P.defaultInstallDir(p, envs[p], homes[p]).includes('FlowForge')));
+    P.PLATFORMS.every((p) => P.defaultInstallDir(p, envs[p], homes[p]).includes('Malomatia Flow')));
 
   // The rule the whole layer exists for: OS branching lives HERE, not scattered.
   const scattered = [];
@@ -457,7 +457,7 @@ if (HAS_DOCS) {
 
   const cmd = site.match(/<code id="cmd">([^<]+)<\/code>/);
   ok('site: the copy button offers the documented install command',
-    !!cmd && cmd[1].includes('get.mjs') && cmd[1].includes('Eng-MMustafa/FlowForge'));
+    !!cmd && cmd[1].includes('get.mjs') && cmd[1].includes('mohmoustafa/MFlow'));
   // A Mac visitor must not be handed a PowerShell line.
   ok('site: offers a command for Windows and one for macOS/Linux',
     /win:\s*'iwr[^']*get\.mjs[^']*'/.test(site) && /nix:\s*'curl[^']*get\.mjs[^']*'/.test(site));
@@ -877,9 +877,19 @@ console.log('# provider registry checks');
     P.PROVIDER_IDS.every((id) => P.PROVIDERS[id].label && P.PROVIDERS[id].labelAr
       && P.providerModels(id).length && P.providerModels(id).every((f) => f.slug && f.label
         && Array.isArray(f.aliases) && Array.isArray(f.variants))));
-  ok('providers: only devin is runnable',
-    P.PROVIDERS.devin.runnable === true
-    && P.PROVIDER_IDS.filter((id) => id !== 'devin').every((id) => !P.PROVIDERS[id].runnable));
+  ok('providers: exactly the headless-CLI tools are runnable',
+    JSON.stringify(P.RUN_PROVIDERS) === JSON.stringify(
+      ['devin', 'copilot', 'cursor', 'claude', 'codex', 'gemini', 'opencode', 'auggie'])
+    && P.RUN_PROVIDERS.every((id) => P.PROVIDERS[id].runnable === true && P.providerRunsStages(id))
+    && P.PROVIDER_IDS.filter((id) => !P.RUN_PROVIDERS.includes(id)).every((id) => !P.providerRunsStages(id)),
+    JSON.stringify(P.RUN_PROVIDERS));
+  ok('providers: run args end with the prompt-ready arg list and map permissions',
+    P.providerRunArgs('claude', { permissionMode: 'dangerous' }).slice(-1)[0] === '-p'
+    && P.providerRunArgs('claude', { permissionMode: 'dangerous' }).join(' ').includes('--dangerously-skip-permissions')
+    && P.providerRunArgs('codex', { permissionMode: 'normal' }).join(' ').includes('exec --skip-git-repo-check --sandbox read-only')
+    && P.providerRunArgs('gemini', { model: 'gemini-3-pro' }).join(' ').endsWith('-m gemini-3-pro -p')
+    && P.providerRunArgs('opencode', {})[0] === 'run'
+    && P.providerRunArgs('zed', {}) === null);
 
   // No machine path may be hard-coded: every root comes from the environment.
   const provSrc = fs.readFileSync(path.join(DASHBOARD, 'providers.mjs'), 'utf8');
@@ -1596,7 +1606,7 @@ const sec = (iso) => Math.floor(Date.parse(iso) / 1000);
       { sessionId: null, flow: 'task', project: USAGE_P1, exitCode: 2, mode: 'cli', startedAt: '2026-09-12T12:00:30Z' },
     ]);
     const L = Object.fromEntries(linked.map((s) => [s.id, s]));
-    ok('usage: the run log turns a session into the FlowForge run it was',
+    ok('usage: the run log turns a session into the Malomatia Flow run it was',
       L['chat-1'].kind === 'flow' && L['chat-1'].flow === 'bugfix' && L['chat-1'].run.exitCode === 0 && byId['chat-1'].kind === 'chat');
     ok('usage: a CLI run is matched to its session by project and start time', L['flow-b'].run && L['flow-b'].run.exitCode === 2);
 
@@ -1727,7 +1737,7 @@ const OCT = (d, h = 12) => `2026-10-${String(d).padStart(2, '0')}T${String(h).pa
     { ts: Date.parse(OCT(6)), type: 'say', say: 'api_req_started', text: JSON.stringify({ tokensIn: 100, tokensOut: 50, cacheWrites: 10, cacheReads: 200, cost: 0.004 }) },
     { ts: Date.parse(OCT(6)), type: 'say', say: 'text', text: 'done' },
   ]));
-  // Aider: the analytics log FlowForge points AIDER_ANALYTICS_LOG at.
+  // Aider: the analytics log Malomatia Flow points AIDER_ANALYTICS_LOG at.
   put(path.join(toolLogDir, 'aider.jsonl'), [
     { event: 'launched', properties: {}, time: Date.parse(OCT(7)) / 1000 },
     { event: 'message_send', properties: { main_model: 'gpt-5', prompt_tokens: 9000, completion_tokens: 400, cost: 0.0153, total_cost: 0.0153 }, time: Date.parse(OCT(7)) / 1000 },
@@ -1867,7 +1877,7 @@ const OCT = (d, h = 12) => `2026-10-${String(d).padStart(2, '0')}T${String(h).pa
     && withHook.hooks.afterFileEdit.length === 1 && S.cursorHookInstalled(process.platform, env));
   S.setCursorHook(false, { hookScript: hook, env });
   const withoutHook = JSON.parse(fs.readFileSync(hooksFile, 'utf8'));
-  ok('usage sources: switching off removes only FlowForge\'s hook',
+  ok('usage sources: switching off removes only Malomatia Flow\'s hook',
     withoutHook.hooks.stop.length === 1 && withoutHook.hooks.stop[0].command === 'my-own-hook.sh' && !S.cursorHookInstalled(process.platform, env));
   fs.writeFileSync(hooksFile, '{ broken');
   let refused = false;
@@ -2018,11 +2028,11 @@ server.stderr.on('data', (d) => { serverOut += d; });
 
 try {
   await sleep(900);
-  ok('server started', serverOut.includes('FlowForge dashboard'), serverOut.slice(0, 200));
+  ok('server started', serverOut.includes('Malomatia Flow dashboard'), serverOut.slice(0, 200));
 
   // UI served
   const ui = await fetch(BASE + '/').then((r) => r.text());
-  ok('GET / serves UI', ui.includes('FlowForge') && ui.includes('const I18N'));
+  ok('GET / serves UI', ui.includes('Malomatia Flow') && ui.includes('const I18N'));
 
   // Studio surface served on both aliases
   const stuRes = await fetch(BASE + '/studio');
@@ -2187,7 +2197,11 @@ try {
       && est.pipeline.orchestrator.calls > 0 && est.pipeline.retryPaths.some((r) => r.from === 'test'));
     const estQ = await post('/api/estimate', { flow: 'task', task: 'x', speed: 'quality' });
     ok('usage api: the speed setting reaches the estimate',
-      estQ.pipeline.speed === 'quality' && estQ.pipeline.stages.filter((s) => s.kind !== 'script').every((s) => s.model === 'claude-opus-5-max'));
+      estQ.pipeline.speed === 'quality'
+      && estQ.pipeline.stages.filter((s) => ['think', 'code', 'debug'].includes(s.id)).every((s) => s.model === 'claude-opus-5-max')
+      && estQ.pipeline.stages.find((s) => s.id === 'test').model === 'claude-sonnet-5-high'
+      && estQ.pipeline.stages.find((s) => s.id === 'ship').model === 'swe-1-7',
+      JSON.stringify(estQ.pipeline.stages.map((s) => `${s.id}:${s.model}`)));
     ok('usage api: stages on the price list are priced in real dollars',
       est.pipeline.stages.filter((s) => s.kind !== 'script').some((s) => s.basis === 'price-list' && s.usd > 0)
       && est.dollars.usdPerAcu === 2 && est.pipeline.happy.usd > 0, JSON.stringify(est.pipeline.stages.map((s) => [s.model, s.basis])));
@@ -2271,7 +2285,7 @@ try {
   const sk = await get('/api/skills');
   ok('skills: lists built-ins', sk.skills.includes('flow') && sk.skills.includes('understand'), JSON.stringify(sk.skills));
   const sk1 = await get('/api/skill?name=flow');
-  ok('skills: get flow skill', sk1.content.includes('FlowForge orchestrator'));
+  ok('skills: get flow skill', sk1.content.includes('Malomatia Flow orchestrator'));
   await post('/api/skill', { name: 'tmp-test-skill', content: '---\nname: tmp-test-skill\n---\nTest.' });
   const sk2 = await get('/api/skills');
   ok('skills: create new skill', sk2.skills.includes('tmp-test-skill'));
@@ -2942,6 +2956,19 @@ console.log('# core engine');
     fast.stages.find((s) => s.id === 'code').model === 'swe-1-7-lightning'
     && fast.stages.find((s) => s.id === 'test').model === 'gemini-3-7-flash-high'
     && fast.stages.find((s) => s.id === 'test').maxLoops === 1 && fast.stages.every((s) => !s.agent || s.effort === 'low'));
+
+  const q = S.initState(task, { task: 'x', speed: 'quality' });
+  const qm = (id) => q.stages.find((s) => s.id === id);
+  ok('state: --speed=quality spends max only where reasoning decides (plan/code/debug), not on review or commit',
+    ['think', 'code', 'debug'].every((id) => qm(id).model === 'claude-opus-5-max' && qm(id).effort === 'max')
+    && qm('analyze').model === 'claude-opus-5-high' && qm('test').model === 'claude-sonnet-5-high'
+    && qm('ship').model === 'swe-1-7' && qm('ship').effort === 'low');
+  const skillTxt = fs.readFileSync(path.join(WORKBENCH, 'skills', 'flow', 'SKILL.md'), 'utf8');
+  ok('skill: every agent stage gets a time budget and a proportional-verification rule',
+    skillTxt.includes('Time budget: about N minutes for this stage') && /do not build new verification harnesses/.test(skillTxt));
+  ok('agents: the planner names visible changes for design work instead of freezing the look',
+    /"Preserve functionality" is not "preserve appearance"/.test(fs.readFileSync(path.join(WORKBENCH, 'agents', 'thinker.md'), 'utf8'))
+    && /Verification is proportional/.test(fs.readFileSync(path.join(WORKBENCH, 'agents', 'coder.md'), 'utf8')));
 
   // sizing
   const tiny = S.initState(task, { task: 'x', size: 'tiny' });

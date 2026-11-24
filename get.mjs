@@ -1,7 +1,7 @@
-// get.mjs - one-command installer for FlowForge.
+// get.mjs - one-command installer for Malomatia Flow.
 //
-//   Windows:  iwr -useb https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"
-//   macOS/Linux:  curl -fsSL https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs
+//   Windows:  iwr -useb https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"
+//   macOS/Linux:  curl -fsSL https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs
 //
 // Downloads (or updates) the workbench, wires it into Devin when Devin is
 // present, and opens the dashboard. Node builtins only - no npm, no shell
@@ -16,7 +16,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 
-const REPO = 'Eng-MMustafa/FlowForge';
+const REPO = 'mohmoustafa/MFlow';
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
 const value = (n, d) => {
@@ -27,9 +27,9 @@ const BRANCH = value('branch', 'main');
 // Where a fresh copy lands when the user names no folder (mirrors
 // defaultInstallDir() in scripts/lib/platform.mjs - kept inline on purpose).
 const defaultDir = () => {
-  if (process.platform === 'win32') return path.join(process.env.LOCALAPPDATA || os.homedir(), 'FlowForge');
-  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support', 'FlowForge');
-  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'FlowForge');
+  if (process.platform === 'win32') return path.join(process.env.LOCALAPPDATA || os.homedir(), 'Malomatia Flow');
+  if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support', 'Malomatia Flow');
+  return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'Malomatia Flow');
 };
 const TARGET = path.resolve(argv.find((a) => !a.startsWith('--')) || defaultDir());
 
@@ -46,7 +46,7 @@ const have = (cmd) => {
 const run = (cmd, args, cwd) => spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: false });
 
 console.log('');
-console.log('  \x1b[1mFlowForge\x1b[0m - staged AI engineering pipelines');
+console.log('  \x1b[1mMalomatia Flow\x1b[0m - staged AI engineering pipelines');
 console.log('');
 
 // 1. Node version. The dashboard and scripts assume modern builtins.

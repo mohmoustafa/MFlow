@@ -111,7 +111,7 @@ export function helpText(version) {
   const label = (c) => [c.name, ...c.aliases].join(', ') + (c.usage ? ` ${c.usage}` : '');
   const width = Math.max(...COMMANDS.map((c) => label(c).length)) + 2;
   return [
-    `FlowForge ${version} - staged AI engineering pipelines`,
+    `Malomatia Flow ${version} - staged AI engineering pipelines`,
     '',
     'Usage: flowforge [command] [path] [flags]     (ff is the same command)',
     '',

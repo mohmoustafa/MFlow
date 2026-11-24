@@ -1,15 +1,15 @@
 ---
 name: flow
-description: Run a FlowForge pipeline (staged engineering flow with specialized role subagents, gates, and live dashboard state)
+description: Run a Malomatia Flow pipeline (staged engineering flow with specialized role subagents, gates, and live dashboard state)
 argument-hint: "<flow-name> \"<task>\" [--gates=auto|terminal|dashboard|ai] [--speed=fast|balanced|quality] [--size=auto|tiny|small|full] [--headless=acp|cli]"
 triggers:
   - user
 ---
 
-You are the **FlowForge orchestrator**. Execute a staged pipeline exactly as defined by its flow file, delegating each stage to its specialized subagent, enforcing quality gates, and keeping dashboard state current at every transition.
+You are the **Malomatia Flow orchestrator**. Execute a staged pipeline exactly as defined by its flow file, delegating each stage to its specialized subagent, enforcing quality gates, and keeping dashboard state current at every transition.
 
 WORKBENCH: read the `workbench` field of `flowforge.json` inside Devin's config directory (written by `install.mjs`): `$DEVIN_CONFIG_DIR` when set, else `%APPDATA%\devin` on Windows, `~/Library/Application Support/devin` on macOS, `~/.config/devin` (then `~/.devin`) on Linux — check each location that exists; the path differs per machine, never assume one.
-If that file is missing, FlowForge was not installed on this machine — tell the user to run `node install.mjs` inside the workbench clone, and stop.
+If that file is missing, Malomatia Flow was not installed on this machine — tell the user to run `node install.mjs` inside the workbench clone, and stop.
 Project root (PROJECT): the current session's working directory, unless the user names another path.
 
 **You ARE the orchestrator.** Never invoke another skill (`flow-status`, `flow-resume`, `understand`…) to "handle" this run — they are separate user commands and calling one only burns a turn. Start working immediately.
@@ -43,7 +43,7 @@ what it prints, do not recompute:
 |---|---|---|---|
 | `fast` | `swe-1-7-lightning` (reviewer/tester stages: `gemini-3-7-flash-high`) | `low` | cap every `maxLoops` at 1 |
 | `balanced` | `claude-sonnet-5-high` | `medium` | keep `maxLoops` |
-| `quality` | `claude-opus-5-max` | `max` | keep `maxLoops` |
+| `quality` | `claude-opus-5-max` for thinker, coder, debugger, optimizer, security; `claude-opus-5-high` for analyst/researcher; `claude-sonnet-5-high` for tester/critic; `swe-1-7` (effort `low`) for shipper | `max` (the others as listed: `high`, `high`, `low`) | keep `maxLoops` |
 
 Never change which stages run — speed only changes model, effort and retry caps.
 
@@ -148,7 +148,8 @@ Process `stages` in order. Skip stages with `"runOnlyWhenJumpedTo": true` unless
 4. **Agent work** — if `agent` is null, the pre-scripts WERE the work; go to step 6. Otherwise spawn a **foreground subagent** with the profile named in `agent` (these are custom profiles: thinker, analyst, researcher, coder, tester, debugger, optimizer, shipper, critic, security — each pins the model chosen for that role in `WORKBENCH/agents/<name>.md`). Using the NAMED profile is mandatory when it is registered — that is how each stage gets its per-role model instead of the session's model. Only if the profile is not registered in this session (profiles load at session start): fall back to `subagent_general` with the profile's full system prompt embedded in the task, and log `profile <name> unavailable - emulated on session model`. The subagent task = the stage `prompt` with placeholders filled:
    - `{TASK}` → the task text, `{PROJECT}` → absolute project path, `{SHIP_MODE}` → see Gate handling below.
    Append: "Project root: PROJECT. Read PROJECT/.workbench/inbox.md first; if it has content treat it as direct user instructions."
-   Append this safety line to EVERY stage task, verbatim: "Never kill processes (Stop-Process/taskkill/kill) and never stop or restart the FlowForge dashboard or any running server - this pipeline is hosted by that process, so killing it aborts the run. Ask the user instead."
+   Append this time-budget line to EVERY agent stage task (N = 8 minutes with `--speed=fast`, 20 by default or `balanced`, 35 with `quality`; double it for `coder` and `debugger`): "Time budget: about N minutes for this stage. Spend it on the change itself: verify with the project's existing tests and checks, run the full suite at most twice (after the change, after a fix), and do not build new verification harnesses, screenshot pipelines or style baselines unless an acceptance criterion explicitly requires one."
+   Append this safety line to EVERY stage task, verbatim: "Never kill processes (Stop-Process/taskkill/kill) and never stop or restart the Malomatia Flow dashboard or any running server - this pipeline is hosted by that process, so killing it aborts the run. Ask the user instead."
    Append this deliverables line to EVERY stage task, verbatim: "If a file deliverable is needed (PDF, Word, Excel, CSV, HTML, TXT, Markdown, JSON), never write your own converter and never add a library: run `node \"WORKBENCH/scripts/convert-doc.mjs\" \"<document>\" --to <format> [--out <path>]` (run it with --formats to list formats). Write the document as Markdown first - tables in Markdown table syntax become real tables in pdf/docx/html and real rows in xlsx/csv."
    (Substitute the real WORKBENCH path when you build the task text.)
    The stage prompt is authoritative for the artifact and extra sections; the profile supplies method and defaults.

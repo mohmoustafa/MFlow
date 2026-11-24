@@ -1,6 +1,6 @@
 ---
 name: flow-status
-description: Show the current FlowForge pipeline state for this project (stages, gates, loops, artifacts)
+description: Show the current Malomatia Flow pipeline state for this project (stages, gates, loops, artifacts)
 allowed-tools:
   - read
   - glob
@@ -9,7 +9,7 @@ triggers:
   - model
 ---
 
-Report the current FlowForge state for the project (current working directory unless the user names another path). **Your responsibility is a read-only report:** you only read `.workbench/` — never write state, never resume or start a run, never invoke another skill.
+Report the current Malomatia Flow state for the project (current working directory unless the user names another path). **Your responsibility is a read-only report:** you only read `.workbench/` — never write state, never resume or start a run, never invoke another skill.
 
 1. Read `.workbench/state.json`. If it does not exist, say no flow has run here and suggest `/understand` or `/flow task "..."`.
 2. Present a compact status:

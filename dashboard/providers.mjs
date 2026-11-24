@@ -1,4 +1,4 @@
-// FlowForge executor-provider registry - zero dependencies (node builtins only).
+// Malomatia Flow executor-provider registry - zero dependencies (node builtins only).
 //
 // One descriptor per provider (Devin, GitHub Copilot, Cursor, Trae) is the single
 // source of truth for: how to probe for the installed editor and its CLI, which
@@ -184,6 +184,22 @@ const TRAE_MODELS = [
 //                  NOTE: this is the ONLY part of this module that spawns a
 //                  process, and only from checkProviderAuth() - never from
 //                  detectProvider(), which stays filesystem-only.
+//   run          : headless pipeline execution (dashboard/runner.mjs).
+//                  { args:[...] } is the argument list the prompt lands on
+//                  (the prompt is always appended last); `perm` maps the
+//                  dashboard's permission modes (dangerous, accept-edits,
+//                  smart, normal) onto the tool's auto-approve flags - a mode
+//                  missing from the map falls back to `dangerous` since a
+//                  headless run cannot answer permission prompts anyway;
+//                  `model` is the flag that takes a model id ('--model', '-m')
+//                  or null when the tool has no such flag.
+//                  `positional:true` means the prompt is a bare positional
+//                  argument and perm/model flags follow `args`
+//                  (codex exec, opencode run). When it is false the prompt is
+//                  the VALUE of a flag (`-p`), so that flag must sit last:
+//                  flags then go BEFORE `args`.
+//                  A provider with a `run` block is runnable:true - the engine
+//                  can drive whole flows and single stages through it.
 export const PROVIDERS = {
   devin: {
     id: 'devin',
@@ -191,6 +207,18 @@ export const PROVIDERS = {
     labelAr: 'ديفين',
     models: DEVIN_MODELS,
     runnable: true,
+    // `devin -p "<prompt>"` headless; the dashboard's permission mode is a
+    // first-class flag on this CLI.
+    run: {
+      args: ['-p'],
+      perm: {
+        dangerous: ['--permission-mode', 'dangerous', '--respect-workspace-trust', 'false'],
+        'accept-edits': ['--permission-mode', 'accept-edits', '--respect-workspace-trust', 'false'],
+        smart: ['--permission-mode', 'smart', '--respect-workspace-trust', 'false'],
+        normal: ['--permission-mode', 'normal', '--respect-workspace-trust', 'false'],
+      },
+      model: '--model',
+    },
     editor: [
       { os: 'win32', base: 'local', rel: ['Programs', 'Devin'] },
       { os: 'darwin', base: 'files', rel: ['Devin.app'] },
@@ -247,7 +275,19 @@ export const PROVIDERS = {
     label: 'GitHub Copilot',
     labelAr: 'جيت‌هاب كوبايلوت',
     models: COPILOT_MODELS,
-    runnable: false,
+    runnable: true,
+    // `copilot -p "<prompt>"` is agentic headless; --allow-all-tools is its
+    // auto-approve (there is no interactive prompt a headless run could answer).
+    run: {
+      args: ['-p'],
+      perm: {
+        dangerous: ['--allow-all-tools'],
+        'accept-edits': ['--allow-all-tools'],
+        smart: ['--allow-all-tools'],
+        normal: ['--allow-all-tools'],
+      },
+      model: '--model',
+    },
     // Copilot is an EXTENSION, so "installed" means the extension folder exists in
     // some VS Code-family editor (or the standalone `copilot` CLI does). A plain
     // VS Code install, or the GitHub CLI on its own, is NOT Copilot - counting
@@ -294,13 +334,25 @@ export const PROVIDERS = {
     label: 'Cursor',
     labelAr: 'كيرسر',
     models: CURSOR_MODELS,
-    runnable: false,
+    runnable: true,
+    // cursor-agent (not the `cursor` app shim) is the headless runner:
+    // `cursor-agent --force -p "<prompt>"` runs autonomously.
+    run: {
+      args: ['-p'],
+      perm: {
+        dangerous: ['--force'],
+        'accept-edits': ['--force'],
+        smart: ['--force'],
+        normal: ['--force'],
+      },
+      model: '--model',
+    },
     editor: [
       { os: 'win32', base: 'local', rel: ['Programs', 'cursor', 'Cursor.exe'] },
       { os: 'darwin', base: 'files', rel: ['Cursor.app'] },
       { base: 'appdata', rel: ['Cursor', 'User', 'settings.json'] },
     ],
-    cli: [{ command: 'cursor' }],
+    cli: [{ command: 'cursor-agent' }, { command: 'cursor' }],
     auth: {
       kind: 'app',
       // Cursor keeps most of its auth in state.vscdb (SQLite), which we will not
@@ -417,7 +469,19 @@ export const PROVIDERS = {
     label: 'Claude Code',
     labelAr: 'كلود كود',
     models: CLAUDE_MODELS,
-    runnable: false,
+    runnable: true,
+    // `claude -p "<prompt>"` runs the full agent loop headless; permission
+    // modes are the CLI's own names.
+    run: {
+      args: ['-p'],
+      perm: {
+        dangerous: ['--dangerously-skip-permissions'],
+        'accept-edits': ['--permission-mode', 'acceptEdits'],
+        smart: ['--permission-mode', 'default'],
+        normal: ['--permission-mode', 'default'],
+      },
+      model: '--model',
+    },
     // A config home counts as the editor surface: `claude` on PATH is the CLI.
     editor: [{ base: 'home', rel: ['.claude'] }],
     cli: [
@@ -460,7 +524,20 @@ export const PROVIDERS = {
     label: 'Codex CLI',
     labelAr: 'كودكس',
     models: CODEX_MODELS,
-    runnable: false,
+    runnable: true,
+    // `codex exec "<prompt>"` runs headless; the sandbox level is our
+    // permission mode (--skip-git-repo-check already sits in `print`).
+    run: {
+      args: ['exec', '--skip-git-repo-check'],
+      positional: true,
+      perm: {
+        dangerous: ['--sandbox', 'danger-full-access'],
+        'accept-edits': ['--sandbox', 'workspace-write'],
+        smart: ['--sandbox', 'workspace-write'],
+        normal: ['--sandbox', 'read-only'],
+      },
+      model: '-m',
+    },
     editor: [{ base: 'home', rel: ['.codex'] }],
     cli: [
       { command: 'codex' },
@@ -497,7 +574,19 @@ export const PROVIDERS = {
     label: 'Gemini CLI',
     labelAr: 'جيميناي',
     models: GEMINI_MODELS,
-    runnable: false,
+    runnable: true,
+    // `gemini -p "<prompt>"` headless; --yolo approves every tool, auto_edit
+    // approves edits only.
+    run: {
+      args: ['-p'],
+      perm: {
+        dangerous: ['--yolo'],
+        'accept-edits': ['--approval-mode', 'auto_edit'],
+        smart: ['--approval-mode', 'auto_edit'],
+        normal: ['--approval-mode', 'default'],
+      },
+      model: '-m',
+    },
     editor: [{ base: 'home', rel: ['.gemini'] }],
     cli: [
       { command: 'gemini' },
@@ -652,7 +741,14 @@ export const PROVIDERS = {
     label: 'OpenCode',
     labelAr: 'أوبن كود',
     models: KEY_MODELS,
-    runnable: false,
+    runnable: true,
+    // `opencode run "<prompt>"` runs one autonomous headless turn.
+    run: {
+      args: ['run'],
+      positional: true,
+      perm: {},
+      model: '-m',
+    },
     editor: [
       { base: 'home', rel: ['.config', 'opencode'] },
       { base: 'appdata', rel: ['opencode'] },
@@ -694,7 +790,13 @@ export const PROVIDERS = {
     label: 'Augment Code',
     labelAr: 'أوجمنت',
     models: KEY_MODELS,
-    runnable: false,
+    runnable: true,
+    // `auggie --print "<prompt>"` is the documented one-shot automation mode.
+    run: {
+      args: ['--print'],
+      perm: {},
+      model: '--model',
+    },
     editor: [
       { base: 'home', rel: ['.vscode', 'extensions'], match: 'augment.vscode-augment' },
       { base: 'home', rel: ['.cursor', 'extensions'], match: 'augment.vscode-augment' },
@@ -800,6 +902,31 @@ export const PRINT_PROVIDERS = PROVIDER_IDS.filter((id) => Array.isArray(PROVIDE
 export function providerPrintArgs(id) {
   const spec = PROVIDERS[id] && PROVIDERS[id].print;
   return Array.isArray(spec) ? spec : null;
+}
+
+// Providers whose CLI can drive pipeline stages headless (descriptor `run`).
+// This is the executor list the dashboard's engine (dashboard/runner.mjs)
+// picks from: any tool here can run whole flows, per-stage, or single calls.
+export const RUN_PROVIDERS = PROVIDER_IDS.filter((id) => !!PROVIDERS[id].run);
+export function providerRunsStages(id) {
+  return !!(PROVIDERS[id] && PROVIDERS[id].run);
+}
+// Full argument list for a headless run; the caller appends the prompt last.
+// `permissionMode` maps onto the tool's auto-approve flags (dangerous is the
+// fallback - a headless call can never answer an interactive permission prompt).
+export function providerRunArgs(id, { model, permissionMode } = {}) {
+  const spec = PROVIDERS[id] && PROVIDERS[id].run;
+  if (!spec) return null;
+  const perm = spec.perm || {};
+  const mode = Object.prototype.hasOwnProperty.call(perm, permissionMode) ? permissionMode : 'dangerous';
+  const permArgs = perm[mode] || perm.dangerous || [];
+  const modelArgs = model && spec.model ? [spec.model, model] : [];
+  // Positional-prompt tools (codex exec, opencode run) take flags after the
+  // subcommand; value-prompt tools (`-p`) need their prompt flag kept LAST so
+  // the prompt text that follows is its value, never another flag.
+  return spec.positional
+    ? [...(spec.args || []), ...permArgs, ...modelArgs]
+    : [...permArgs, ...modelArgs, ...(spec.args || [])];
 }
 
 // ---------- environment roots ----------
@@ -1174,7 +1301,7 @@ function acpAuthProbe(cliPath, apiKey, timeoutMs = 12000) {
         jsonrpc: '2.0', id: 1, method: 'initialize',
         params: {
           protocolVersion: 1,
-          clientInfo: { name: 'flowforge-auth-probe', title: 'FlowForge', version: '1.0.0' },
+          clientInfo: { name: 'flowforge-auth-probe', title: 'Malomatia Flow', version: '1.0.0' },
           clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
         },
       }) + '\n');

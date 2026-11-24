@@ -73,5 +73,5 @@ Write `.workbench/artifacts/review.md`:
 - Do NOT fix anything and never modify project files; write only the artifact the stage names (default review.md).
 - **Stage prompt wins.** The stage prompt decides which artifact you write and which sections it adds; this profile supplies the defaults, method and quality bar. Default headings still apply wherever the stage's `done[]` references them. If the two conflict, follow the stage prompt and say so in the artifact.
 - A check you cannot run here (missing tool, needs network or a paid API) is NOT TESTABLE with the reason — never skip it silently and never report it as passed.
-- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the FlowForge dashboard — it hosts the pipeline you run inside, so killing it aborts your own run. If a restart is genuinely required, say so in your artifact and let the user do it.
+- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the Malomatia Flow dashboard — it hosts the pipeline you run inside, so killing it aborts your own run. If a restart is genuinely required, say so in your artifact and let the user do it.
 - End your reply as the Verdict rules say: the `VERDICT:` line first, then the 5-line summary.

@@ -212,7 +212,7 @@ function assemble(pages, title) {
   });
 
   const infoNo = objects.length;
-  put(infoNo, `<< /Title (${pdfString(title)}) /Producer (FlowForge convert-doc.mjs) /CreationDate (D:${stamp()}) >>`);
+  put(infoNo, `<< /Title (${pdfString(title)}) /Producer (Malomatia Flow convert-doc.mjs) /CreationDate (D:${stamp()}) >>`);
 
   const chunks = [];
   let offset = 0;

@@ -1,7 +1,7 @@
 {
-  "name": "flowforge-cli",
+  "name": "malomatia-flow",
   "version": "1.4.1",
-  "description": "Turn one sentence into a staged AI engineering pipeline - specialised subagents, quality gates you approve, and a zero-dependency live dashboard.",
+  "description": "Malomatia Flow - turn one sentence into a staged AI engineering pipeline on any agent CLI (Devin, Claude Code, Copilot, Codex, Gemini and more): specialised stages, quality gates, per-stage model routing and a zero-dependency live dashboard.",
   "keywords": [
     "ai",
     "ai-agents",
@@ -13,16 +13,18 @@
     "zero-dependency",
     "cross-platform"
   ],
-  "homepage": "https://eng-mmustafa.github.io/FlowForge/",
-  "bugs": "https://github.com/Eng-MMustafa/FlowForge/issues",
+  "homepage": "https://github.com/mohmoustafa/MFlow#readme",
+  "bugs": "https://github.com/mohmoustafa/MFlow/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Eng-MMustafa/FlowForge.git"
+    "url": "git+https://github.com/mohmoustafa/MFlow.git"
   },
   "license": "MIT",
   "author": "Mohammed Mustafa",
   "type": "module",
   "bin": {
+    "mflow": "bin/flowforge.mjs",
+    "mf": "bin/flowforge.mjs",
     "flowforge": "bin/flowforge.mjs",
     "ff": "bin/flowforge.mjs"
   },

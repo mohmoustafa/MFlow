@@ -29,18 +29,18 @@
 
 التسطيب أمر واحد، من غير npm install ولا إعدادات:
 
-iwr -useb https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"
+iwr -useb https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"
 
 وعلى ماك/لينكس:
 
-curl -fsSL https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs
+curl -fsSL https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs
 
-أو من غير تسطيب خالص: npx flowforge-cli
+أو من غير تسطيب خالص: npx malomatia-flow
 
 الكود مفتوح بالكامل برخصة MIT:
-🔗 github.com/Eng-MMustafa/FlowForge
-🌐 eng-mmustafa.github.io/FlowForge
-📦 npmjs.com/package/flowforge-cli
+🔗 github.com/mohmoustafa/MFlow
+🌐 mohmoustafa.github.io/MFlow
+📦 npmjs.com/package/malomatia-flow
 
 التشغيل الفعلي للفلو دلوقتي عبر Devin CLI، والأداة بتكتشف كمان GitHub Copilot وCursor وTrae وبتفلتر الموديلات والفلوهات على اللي متسطّب عندك فعلًا.
 

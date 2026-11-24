@@ -1,4 +1,4 @@
-// FlowForge dashboard server - zero dependencies (node builtins only).
+// Malomatia Flow dashboard server - zero dependencies (node builtins only).
 //
 // Usage: node server.mjs ["C:\path\to\project"] [port]
 //   - The project argument is optional: projects are managed in a registry file
@@ -30,8 +30,11 @@ import {
   PROVIDER_IDS, DEFAULT_PROVIDER, detectProvider, buildFlowFromModules,
   providerModels, summarizeProviders, checkProviderAuth, invalidateProviderAuth,
   providerLoginScript, providerAuthKind, mapModelsToProvider,
-  PRINT_PROVIDERS, providerPrintArgs,
+  PRINT_PROVIDERS, providerPrintArgs, RUN_PROVIDERS, providerRunsStages,
 } from './providers.mjs';
+// The engine: dashboard-side orchestration - one headless CLI call per stage,
+// so any runnable provider can execute a flow and stages may mix providers.
+import { runPipeline } from './runner.mjs';
 // Token estimates and real usage, read from Devin's own session log.
 import {
   REFINE_MARK, readDevinSessions, readSessionUsage, findSessionFor, linkRuns,
@@ -192,7 +195,7 @@ function stripAnsi(s) {
 
 // ---------- usage ----------
 // Devin's session log is the ground truth for tokens and ACUs; this small log
-// adds what it cannot know - which sessions were FlowForge runs and how they
+// adds what it cannot know - which sessions were Malomatia Flow runs and how they
 // ended. FF_USAGE_RUNS keeps a test server off the real file.
 const RUNS_LOG = process.env.FF_USAGE_RUNS || path.join(stateDir(__dirname), 'usage-runs.local.json');
 
@@ -634,7 +637,9 @@ function startRun(project, { flow, task, gates, speed, size, permissionMode }) {
 
 function stopRun(r) {
   if (!r || r.exitCode !== null) return false;
-  if (r.killAcp) {
+  if (r.engineStop) {
+    try { r.engineStop(); } catch {}
+  } else if (r.killAcp) {
     try { r.killAcp(); } catch {}
   } else {
     // The CLI spawns children, so the whole tree has to go: taskkill /T on
@@ -812,13 +817,118 @@ async function ensureGateRequest(project, st) {
   await fs.writeFile(file, JSON.stringify({ gate: { stage: st.currentStage, question: q, questionAr: qAr, requestedAt: new Date().toISOString() }, response: null }, null, 2), 'utf8');
 }
 
+// ---------- engine runner (any runnable provider) ----------
+// dashboard/runner.mjs walks the flow itself: one headless provider-CLI call
+// per stage, so any tool with a `run` spec (claude, codex, gemini, copilot,
+// opencode, auggie, cursor-agent, devin -p) can execute a pipeline - and a
+// stage's own `provider` field can route it to a different tool than the
+// run's default. Gates reuse the exact same commands.json contract the ACP
+// path uses, so the UI needs no second gate mechanism.
+async function startEngineRun(project, spec) {
+  const provider = spec.provider;
+  const det = await detectProvider(provider, project);
+  if (!det.cliPath) return { run: null, reason: 'cli_not_found' };
+  const auth = await checkProviderAuth(provider, det);
+  if (!auth.loggedIn && providerAuthKind(provider) !== 'none') return { run: null, reason: 'not_logged_in' };
+  const gateMode = ['auto', 'terminal', 'dashboard', 'ai'].includes(spec.gates) ? spec.gates : 'dashboard';
+  const thisRun = registerRun({
+    proc: null, pid: null, flow: spec.flow, task: String(spec.task || '').trim(), gates: gateMode,
+    project, mode: 'engine', provider, sessionId: null,
+    startedAt: new Date().toISOString(), endedAt: null, exitCode: null,
+    lines: [], cmd: `engine:${provider} ${spec.flow}`,
+  });
+  const push = (text) => runPush(thisRun, text);
+  const ctrl = { stop: false };
+  const procRef = { proc: null };
+  // Gate decisions arrive via POST /api/command (same shape as ACP runs).
+  thisRun.decide = async (stage, decision, note) => {
+    if (!thisRun.gateResolve) return false;
+    const resolve = thisRun.gateResolve;
+    thisRun.gateResolve = null;
+    thisRun.gateWait = null;
+    push(`[gate] ${decision}: ${stage}${note ? ` - ${note}` : ''}`);
+    resolve({ decision, note });
+    return true;
+  };
+  const requestGate = (stage, question, questionAr) => new Promise((resolve) => {
+    const file = projectPaths(project).commands;
+    fs.writeFile(file, JSON.stringify({
+      gate: { stage, question, questionAr, requestedAt: new Date().toISOString() }, response: null,
+    }, null, 2), 'utf8').catch(() => {});
+    thisRun.gateWait = { stage, since: new Date().toISOString() };
+    thisRun.gateResolve = resolve;
+  });
+  thisRun.engineStop = () => {
+    ctrl.stop = true;
+    const p = procRef.proc;
+    if (p && p.pid) {
+      const tree = killTreeCommand(p.pid);
+      try {
+        if (tree) execFile(tree.cmd, tree.args, { windowsHide: true }, () => {});
+        else { try { process.kill(-p.pid, 'SIGTERM'); } catch { process.kill(p.pid, 'SIGTERM'); } }
+      } catch {}
+    }
+    if (thisRun.gateResolve) {
+      const resolve = thisRun.gateResolve;
+      thisRun.gateResolve = null;
+      thisRun.gateWait = null;
+      resolve(null);
+    }
+  };
+  push(`[runner:engine] provider: ${provider} :: ${spec.flow}`);
+  push(`[runner:engine] cwd: ${project}`);
+  runPipeline({
+    project,
+    spec: { ...spec, provider, permissionMode: spec.permissionMode || 'dangerous' },
+    push, shouldStop: () => ctrl.stop, requestGate, procRef,
+  }).then((res) => {
+    thisRun.exitCode = res && res.code === 0 ? 0 : 1;
+    thisRun.endedAt = new Date().toISOString();
+    if (res && res.summary) push(res.summary);
+    push(`[runner] exited with code ${thisRun.exitCode}`);
+    recordRun(thisRun);
+  }).catch((e) => {
+    thisRun.exitCode = 1;
+    thisRun.endedAt = new Date().toISOString();
+    push(`[runner] engine error: ${e.message}`);
+    recordRun(thisRun);
+  });
+  return { run: thisRun };
+}
+
+// The first runnable provider with a detected CLI and a live login - the
+// 'auto' executor pick, after Devin's own paths have had their chance.
+async function firstEngineProvider(project) {
+  for (const id of RUN_PROVIDERS.filter((x) => x !== DEFAULT_PROVIDER)) {
+    const det = await detectProvider(id, project);
+    if (!det.cliPath) continue;
+    const auth = await checkProviderAuth(id, det);
+    if (auth.loggedIn || providerAuthKind(id) === 'none') return id;
+  }
+  return null;
+}
+
 // One entry point for "start this flow in this project with whatever executor
-// exists": ACP with the stored key, else the logged-in CLI. Returns null (and
-// why) when nothing can run it - the queue keeps the item and retries.
+// exists": a named provider goes to the engine; 'auto'/Devin tries ACP with
+// the stored key, then the logged-in CLI, then any connected engine provider.
+// Returns null (and why) when nothing can run it - the queue keeps the item
+// and retries.
 async function launchRun(project, spec) {
+  const provider = spec.provider;
+  if (provider && provider !== 'auto' && provider !== DEFAULT_PROVIDER) {
+    if (!providerRunsStages(provider)) return { run: null, reason: 'provider_not_runnable' };
+    return startEngineRun(project, spec);
+  }
   if (process.env.FF_NO_ACP !== '1' && (readStoredKey() || process.env.WINDSURF_API_KEY)) return { run: startRunAcp(project, spec) };
   const cli = await checkCli();
   if (cli.found && cli.authenticated) return { run: startRun(project, spec) };
+  // 'auto' (or a missing explicit pick) may fall through to any connected
+  // runnable provider - the machine's own Copilot/Claude/Codex can still
+  // execute the flow even when Devin is not usable.
+  if (provider === 'auto') {
+    const engine = await firstEngineProvider(project);
+    if (engine) return startEngineRun(project, { ...spec, provider: engine });
+  }
   return { run: null, reason: 'no_executor' };
 }
 
@@ -1067,6 +1177,15 @@ const handlers = {
     if (project) {
       const p = projectPaths(project);
       state = await readJsonSafe(p.state);
+      // Staleness flag: the run pinned the flow file's mtime at start; a
+      // different mtime now means the flow was edited mid-run and the engine
+      // snapshot (and stage prompts already issued) is older than the file.
+      if (state && state.status !== 'done' && state.flowFile) {
+        try {
+          const mt = fssync.statSync(state.flowFile).mtimeMs;
+          if (state.flowMtime && Math.abs(mt - state.flowMtime) > 500) state.flowChanged = true;
+        } catch {}
+      }
       const commands = await readJsonSafe(p.commands);
       gate = commands && commands.gate ? commands.gate : null;
       artifacts = await listDirSafe(p.artifacts);
@@ -1419,13 +1538,16 @@ const handlers = {
 
   // ---------- headless runner API ----------
   // Execution paths, tried in order:
-  //   1. ACP mode (preferred) - `devin acp` with the stored enterprise key;
+  //   1. Engine mode - a named runnable provider (claude, codex, gemini,
+  //      copilot, opencode, auggie, cursor-agent, devin) driven stage by stage.
+  //   2. ACP mode (Devin default) - `devin acp` with the stored enterprise key;
   //      works even when the interactive CLI login is rejected server-side.
-  //   2. CLI mode - `devin -p` headless (only when auth status confirms login).
-  //   3. Queue mode - a /flow-daemon session is listening.
+  //   3. CLI mode - `devin -p` headless (only when auth status confirms login).
+  //   4. Queue mode - a /flow-daemon session is listening.
   'POST /api/run': async (req) => {
     const body = JSON.parse(await readBody(req));
-    const { flow, task, gates, speed, permissionMode, provider, enqueue } = body;
+    const { flow, task, gates, speed, permissionMode, enqueue } = body;
+    const provider = typeof body.provider === 'string' && body.provider ? body.provider : null;
     const size = cleanSize(body.size);
     const project = body.project ? path.resolve(String(body.project)) : requireProject();
     if (typeof flow !== 'string' || !SAFE_NAME.test(flow)) throw httpError(400, 'bad flow name');
@@ -1435,25 +1557,27 @@ const handlers = {
       const st = await readJsonSafe(projectPaths(project).state);
       if (!st || !st.status || st.status === 'done') throw httpError(409, 'nothing_to_resume');
     }
-    // Only Devin has an executor; the other providers are selectable for flow and
-    // model filtering only. Reject BEFORE any ACP/CLI/queue branch so a mislabeled
-    // provider can never start a real Devin run.
-    if (provider !== undefined && provider !== null && provider !== DEFAULT_PROVIDER) {
-      throw httpError(409, 'provider_not_runnable');
-    }
+    // Provider validation: 'auto' means "whatever is connected"; a named
+    // provider must exist and have a `run` spec (engine execution).
+    if (provider && provider !== 'auto' && !PROVIDER_IDS.includes(provider)) throw httpError(400, `provider must be one of: auto, ${PROVIDER_IDS.join(', ')}`);
+    if (provider && provider !== 'auto' && !providerRunsStages(provider)) throw httpError(409, 'provider_not_runnable');
+    const enqueueItem = async () => {
+      await JOBS.load();
+      const item = JOBS.enqueue({ project, flow, task, gates, speed: SPEEDS.includes(speed) ? speed : '', size, provider: provider || '', permissionMode });
+      await JOBS.save();
+      return { ok: true, mode: 'queue', id: item.id, position: JOBS.queue.filter((q) => q.status === 'queued').length };
+    };
     // This project is busy: refuse as before, or (enqueue) line the task up.
     if (activeRunOf(project)) {
       if (!enqueue) throw httpError(409, 'a run is already active - stop it first');
-      await JOBS.load();
-      const item = JOBS.enqueue({ project, flow, task, gates, speed: SPEEDS.includes(speed) ? speed : '', size });
-      await JOBS.save();
-      return { ok: true, mode: 'queue', id: item.id, position: JOBS.queue.filter((q) => q.status === 'queued').length };
+      return enqueueItem();
     }
-    if (activeRuns().length >= MAX_PARALLEL) {
-      await JOBS.load();
-      const item = JOBS.enqueue({ project, flow, task, gates, speed: SPEEDS.includes(speed) ? speed : '', size });
-      await JOBS.save();
-      return { ok: true, mode: 'queue', id: item.id, position: JOBS.queue.filter((q) => q.status === 'queued').length };
+    if (activeRuns().length >= MAX_PARALLEL) return enqueueItem();
+    // A named non-Devin provider always goes through the engine.
+    if (provider && provider !== 'auto' && provider !== DEFAULT_PROVIDER) {
+      const { run: r, reason } = await startEngineRun(project, { flow, task, gates, speed, size, permissionMode, provider });
+      if (!r) throw httpError(409, `provider_not_ready: ${reason}`);
+      return { ok: true, mode: 'engine', id: r.id, cmd: r.cmd, startedAt: r.startedAt };
     }
     if (process.env.FF_NO_ACP !== '1' && (readStoredKey() || process.env.WINDSURF_API_KEY)) {
       const r = startRunAcp(project, { flow, task, gates, speed, size });
@@ -1463,6 +1587,15 @@ const handlers = {
     if (cli.found && cli.authenticated) {
       const r = startRun(project, { flow, task, gates, speed, size, permissionMode });
       return { ok: true, mode: 'cli', id: r.id, pid: r.pid, cmd: r.cmd, startedAt: r.startedAt };
+    }
+    // 'auto' may fall through to any connected engine provider.
+    if (provider === 'auto') {
+      const engine = await firstEngineProvider(project);
+      if (engine) {
+        const { run: r, reason } = await startEngineRun(project, { flow, task, gates, speed, size, permissionMode, provider: engine });
+        if (r) return { ok: true, mode: 'engine', provider: engine, id: r.id, cmd: r.cmd, startedAt: r.startedAt };
+        void reason;
+      }
     }
     const daemon = await daemonStatus(project);
     if (!daemon.alive) throw httpError(409, 'no_executor');
@@ -1701,6 +1834,7 @@ const handlers = {
       added.push(JOBS.enqueue({
         project, flow, task: it.task, gates: ['auto', 'terminal', 'dashboard', 'ai'].includes(it.gates) ? it.gates : 'dashboard',
         speed: SPEEDS.includes(it.speed) ? it.speed : '', size: cleanSize(it.size),
+        provider: PROVIDER_IDS.includes(it.provider) ? it.provider : '', permissionMode: it.permissionMode || '',
       }));
     }
     await JOBS.save();
@@ -1816,7 +1950,7 @@ const handlers = {
 
   // Switch a tool's usage recorder on or off. Every action is one the user
   // clicked; nothing here runs on its own.
-  //   cursor  - add/remove FlowForge's `stop` hook in ~/.cursor/hooks.json
+  //   cursor  - add/remove Malomatia Flow's `stop` hook in ~/.cursor/hooks.json
   //   aider   - set/clear AIDER_ANALYTICS_LOG
   //   copilot - set/clear the Copilot CLI OpenTelemetry file export, and
   //             read GitHub's premium-request billing report through gh
@@ -1894,7 +2028,9 @@ const handlers = {
   // `flowDef` inline (the canvas, unsaved) wins over the saved flow file, so the
   // price of a model change shows before it is saved.
   'POST /api/estimate': async (req) => {
-    const { flow, task, speed, size, flowDef: inline } = JSON.parse(await readBody(req) || '{}');
+    const body = JSON.parse(await readBody(req) || '{}');
+    const { flow, task, speed, size, flowDef: inline } = body;
+    const estProvider = PROVIDER_IDS.includes(body.provider) ? body.provider : '';
     const name = SAFE_NAME.test(String(flow || '')) ? String(flow) : 'task';
     let flowDef = {};
     if (inline && typeof inline === 'object' && Array.isArray(inline.stages)) flowDef = inline;
@@ -1916,6 +2052,7 @@ const handlers = {
       flow: name, task: String(task || ''), flowDef, parts, sessions,
       stageCounts: await flowStageCounts(), agentModels: await agentModels(),
       speed: SPEEDS.includes(speed) ? speed : '', prices: pl ? pl.table : null,
+      provider: estProvider,
     });
     est.dollars = { ...est.dollars, source: pl ? pl.source : null, fetchedAt: pl ? pl.fetchedAt : null };
     return { available: log.available, message: log.message || null, ...est };
@@ -2035,7 +2172,7 @@ const server = http.createServer(async (req, res) => {
 server.on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     console.error(`Port ${PORT} is already in use.`);
-    console.error(`  Another FlowForge may be running: http://127.0.0.1:${PORT}/`);
+    console.error(`  Another Malomatia Flow may be running: http://127.0.0.1:${PORT}/`);
     console.error('  Or start this one elsewhere:  flowforge --port=4830');
     process.exit(3);
   }
@@ -2045,7 +2182,7 @@ server.on('error', (e) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   armWatcher();
-  console.log('FlowForge dashboard');
+  console.log('Malomatia Flow dashboard');
   console.log(`  workbench: ${WORKBENCH}`);
   console.log(`  active:    ${activeProject() || '(none - add a project from Settings)'}`);
   console.log(`  url:       http://127.0.0.1:${PORT}/`);

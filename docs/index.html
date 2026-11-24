@@ -7,7 +7,7 @@
 <meta name="description" content="Turn one rough sentence into a staged AI engineering pipeline: specialised subagents, quality gates you approve, and a zero-dependency live dashboard.">
 <meta property="og:title" content="FlowForge">
 <meta property="og:description" content="One sentence in. A planned, analysed, implemented, tested and shipped change out.">
-<meta property="og:image" content="https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/docs/screenshots/01-overview.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/mohmoustafa/MFlow/main/docs/screenshots/01-overview.png">
 <meta name="theme-color" content="#0b0f14">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9881;</text></svg>">
 <style>
@@ -94,8 +94,8 @@
   <nav>
     <a href="#how" data-en="How it works" data-ar="إزاي بيشتغل">How it works</a>
     <a href="#features" data-en="Features" data-ar="المميزات">Features</a>
-    <a href="https://www.npmjs.com/package/flowforge-cli">npm</a>
-    <a href="https://github.com/Eng-MMustafa/FlowForge">GitHub</a>
+    <a href="https://www.npmjs.com/package/malomatia-flow">npm</a>
+    <a href="https://github.com/mohmoustafa/MFlow">GitHub</a>
     <button class="lang" id="lang" type="button">العربية</button>
   </nav>
 </div></header>
@@ -111,14 +111,14 @@
     <button type="button" data-os="nix">macOS / Linux</button>
   </div>
   <div class="cmd">
-    <code id="cmd">iwr -useb https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"</code>
+    <code id="cmd">iwr -useb https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o "$env:TEMP\ff.mjs"; node "$env:TEMP\ff.mjs"</code>
     <button class="copy" id="copy" type="button" data-en="Copy" data-ar="نسخ">Copy</button>
   </div>
-  <p class="alt" data-en='No npm install, no dependencies, no config. Or run it straight away: <code>npx flowforge-cli</code>'
-     data-ar='من غير npm install ولا مكتبات ولا إعدادات. أو شغّلها على طول: <code>npx flowforge-cli</code>'>No npm install, no dependencies, no config. Or run it straight away: <code>npx flowforge-cli</code></p>
+  <p class="alt" data-en='No npm install, no dependencies, no config. Or run it straight away: <code>npx malomatia-flow</code>'
+     data-ar='من غير npm install ولا مكتبات ولا إعدادات. أو شغّلها على طول: <code>npx malomatia-flow</code>'>No npm install, no dependencies, no config. Or run it straight away: <code>npx malomatia-flow</code></p>
 
   <div class="badges">
-    <a href="https://www.npmjs.com/package/flowforge-cli"><img alt="npm" src="https://img.shields.io/npm/v/flowforge-cli?color=cb3837&logo=npm&logoColor=white"></a>
+    <a href="https://www.npmjs.com/package/malomatia-flow"><img alt="npm" src="https://img.shields.io/npm/v/malomatia-flow?color=cb3837&logo=npm&logoColor=white"></a>
     <img alt="dependencies 0" src="https://img.shields.io/badge/dependencies-0-6fb8ff">
     <img alt="tests" src="https://img.shields.io/badge/tests-255%20passing-3ecc6b">
     <img alt="license MIT" src="https://img.shields.io/badge/license-MIT-f0a92e">
@@ -197,8 +197,8 @@
     <p class="lead" style="margin:8px auto 0" data-en="Windows, macOS or Linux. Node 18 or newer. MIT licensed."
        data-ar="ويندوز أو ماك أو لينكس، ونود 18 أو أحدث. رخصة MIT.">Windows, macOS or Linux. Node 18 or newer. MIT licensed.</p>
     <div class="btns">
-      <a class="btn primary" href="https://github.com/Eng-MMustafa/FlowForge#install-in-one-command" data-en="Install now" data-ar="سطّبه دلوقتي">Install now</a>
-      <a class="btn" href="https://github.com/Eng-MMustafa/FlowForge" data-en="Read the docs" data-ar="اقرا التوثيق">Read the docs</a>
+      <a class="btn primary" href="https://github.com/mohmoustafa/MFlow#install-in-one-command" data-en="Install now" data-ar="سطّبه دلوقتي">Install now</a>
+      <a class="btn" href="https://github.com/mohmoustafa/MFlow" data-en="Read the docs" data-ar="اقرا التوثيق">Read the docs</a>
       <a class="btn" href="README.ar.md" data-en="بالعربي" data-ar="النسخة العربية">بالعربي</a>
     </div>
   </div>
@@ -206,14 +206,14 @@
 
 <footer><div class="wrap">
   <span>FlowForge &#9881; - MIT - Mohammed Mustafa</span>
-  <span><a href="https://github.com/Eng-MMustafa/FlowForge">GitHub</a> &middot; <a href="https://www.npmjs.com/package/flowforge-cli">npm</a></span>
+  <span><a href="https://github.com/mohmoustafa/MFlow">GitHub</a> &middot; <a href="https://www.npmjs.com/package/malomatia-flow">npm</a></span>
 </div></footer>
 
 <script>
   // The install line differs per OS: offer the right one, and preselect it.
   var COMMANDS = {
-    win: 'iwr -useb https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o "$env:TEMP\\ff.mjs"; node "$env:TEMP\\ff.mjs"',
-    nix: 'curl -fsSL https://raw.githubusercontent.com/Eng-MMustafa/FlowForge/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs'
+    win: 'iwr -useb https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o "$env:TEMP\\ff.mjs"; node "$env:TEMP\\ff.mjs"',
+    nix: 'curl -fsSL https://raw.githubusercontent.com/mohmoustafa/MFlow/main/get.mjs -o /tmp/ff.mjs && node /tmp/ff.mjs'
   };
   var osBar = document.getElementById('os');
   function pickOs(key) {

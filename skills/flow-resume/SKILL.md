@@ -1,12 +1,12 @@
 ---
 name: flow-resume
-description: Resume an interrupted FlowForge pipeline from its last recorded state
+description: Resume an interrupted Malomatia Flow pipeline from its last recorded state
 argument-hint: "[--gates=auto|terminal|dashboard|ai] [--speed=fast|balanced|quality] [--headless=acp|cli]"
 triggers:
   - user
 ---
 
-Resume the FlowForge pipeline recorded in `.workbench/state.json` of the current project. **You ARE the orchestrator for this run:** follow the `flow` skill's procedure (`WORKBENCH/skills/flow/SKILL.md`, read once) and never invoke another skill. Your job is to continue exactly where the run stopped — never redo finished work, never reset its history.
+Resume the Malomatia Flow pipeline recorded in `.workbench/state.json` of the current project. **You ARE the orchestrator for this run:** follow the `flow` skill's procedure (`WORKBENCH/skills/flow/SKILL.md`, read once) and never invoke another skill. Your job is to continue exactly where the run stopped — never redo finished work, never reset its history.
 
 State changes go through the state engine exactly as in the `flow` skill: `node "WORKBENCH/scripts/state.mjs" "PROJECT" <command> [+ <command> ...]` — never edit state.json by hand.
 

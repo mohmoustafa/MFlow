@@ -78,7 +78,7 @@ export function toolRoots(plat = plat0(), env = process.env, home = home0()) {
   return { home: h, appdata: xdgConfig, localData: xdgData, xdgData, xdgConfig };
 }
 
-// Where FlowForge's own usage recorders (hooks, exporters we switched on)
+// Where Malomatia Flow's own usage recorders (hooks, exporters we switched on)
 // write. Deliberately outside the install folder so an update never wipes it.
 export function usageLogDir(plat = plat0(), env = process.env, home = home0()) {
   return env.FF_USAGE_DIR || path.join(toolRoots(plat, env, home).home, '.flowforge', 'usage');
@@ -106,7 +106,7 @@ export function profileFiles(plat = plat0(), env = process.env, home = home0()) 
   return found.length ? found : [path.join(h, candidates[0])];
 }
 
-// Replace (or drop, with an empty map) FlowForge's block in one profile text.
+// Replace (or drop, with an empty map) Malomatia Flow's block in one profile text.
 export function withProfileBlock(text, vars = {}) {
   const src = String(text || '');
   const re = new RegExp(`\\n?${PROFILE_BLOCK_START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${PROFILE_BLOCK_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`, 'g');
@@ -232,7 +232,7 @@ export function killTreeCommand(pid, plat = plat0()) {
 
 // ---------- interactive login terminals ----------
 
-// A login is an OAuth dance owned by the vendor's CLI: FlowForge only opens a
+// A login is an OAuth dance owned by the vendor's CLI: Malomatia Flow only opens a
 // real terminal on it. Each platform gets the script flavour it can run.
 export function loginScriptFormat(plat = plat0()) {
   if (plat === 'win32') return { ext: '.cmd', newline: '\r\n', mode: 0o644 };
@@ -332,9 +332,9 @@ export function isWritable(dir) {
 // A global install can be owned by root (`sudo npm i -g`), and then nothing may
 // be written next to the code. Per-user state goes here instead.
 export function userStateDir(plat = plat0(), env = process.env, home = home0()) {
-  if (plat === 'win32') return path.join(env.LOCALAPPDATA || home, 'FlowForge');
-  if (plat === 'darwin') return path.join(home, 'Library', 'Application Support', 'FlowForge');
-  return path.join(env.XDG_STATE_HOME || path.join(home, '.local', 'state'), 'FlowForge');
+  if (plat === 'win32') return path.join(env.LOCALAPPDATA || home, 'Malomatia Flow');
+  if (plat === 'darwin') return path.join(home, 'Library', 'Application Support', 'Malomatia Flow');
+  return path.join(env.XDG_STATE_HOME || path.join(home, '.local', 'state'), 'Malomatia Flow');
 }
 
 // `preferred` (the install folder) wins when it is writable, so existing
@@ -349,7 +349,7 @@ export function stateDir(preferred, opts = {}) {
 
 // Where a fresh install lands when the user names no folder.
 export function defaultInstallDir(plat = plat0(), env = process.env, home = home0()) {
-  if (plat === 'win32') return path.join(env.LOCALAPPDATA || home, 'FlowForge');
-  if (plat === 'darwin') return path.join(home, 'Library', 'Application Support', 'FlowForge');
-  return path.join(env.XDG_DATA_HOME || path.join(home, '.local', 'share'), 'FlowForge');
+  if (plat === 'win32') return path.join(env.LOCALAPPDATA || home, 'Malomatia Flow');
+  if (plat === 'darwin') return path.join(home, 'Library', 'Application Support', 'Malomatia Flow');
+  return path.join(env.XDG_DATA_HOME || path.join(home, '.local', 'share'), 'Malomatia Flow');
 }

@@ -1,5 +1,5 @@
 // start.mjs - The single command: `node start.mjs`
-// Installs FlowForge into Devin if that was never done (or the workbench moved),
+// Installs Malomatia Flow into Devin if that was never done (or the workbench moved),
 // starts the dashboard, and opens it in the browser. Everything else - picking
 // the project, writing the task, running flows, approving gates - happens on
 // the dashboard itself. Ctrl+C stops the server.
@@ -69,7 +69,7 @@ if (flag('check')) {
   process.exit(0);
 }
 
-console.log('FlowForge');
+console.log('Malomatia Flow');
 console.log(`  workbench: ${REPO}`);
 
 // No Devin on this machine is NOT a reason to refuse: the dashboard, the flow

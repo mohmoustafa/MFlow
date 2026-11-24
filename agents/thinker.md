@@ -55,6 +55,8 @@ Write your result to `.workbench/artifacts/plan.md` (create directories if missi
 - Stage limits hold (line caps, "no product code"); in rules output, knowledge.json parses as JSON.
 
 ## Rules
+- **"Preserve functionality" is not "preserve appearance".** When the task asks to improve design, UX, layout or look, the plan must name the visible changes (what moves, grows, merges, disappears, per page) and at least one acceptance criterion must be a visible difference. Never make "looks identical" or "computed styles unchanged" a criterion unless the task says the look must not change.
+- Size the verification to the change: prefer the project's existing tests; plan new harnesses or baselines only when no existing check can prove a criterion.
 - Cite real paths (`src/...`) and line references for anything you assert about existing code.
 - Steps must be imperative and unambiguous ("Add X to Y", not "Handle X").
 - Do not modify product code; write only the artifact(s) the stage names under `.workbench/`.

@@ -153,7 +153,7 @@ export async function refreshLiteLLM({ cacheFile = null, maxAgeMs = 24 * 3600 * 
     try {
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), timeoutMs);
-      const res = await fetch(LITELLM_SOURCE, { signal: ctl.signal, headers: { 'User-Agent': 'FlowForge' } });
+      const res = await fetch(LITELLM_SOURCE, { signal: ctl.signal, headers: { 'User-Agent': 'Malomatia Flow' } });
       clearTimeout(timer);
       const table = res.ok ? parseLiteLLM(await res.text()) : null;
       if (table) {
@@ -558,7 +558,7 @@ async function antigravity(r, env) {
   return { sessions: col.list(), files: dbs.length };
 }
 
-// ---- recorders FlowForge switched on (hook / exporter / analytics log)
+// ---- recorders Malomatia Flow switched on (hook / exporter / analytics log)
 function aider(r, env, plat, logDir) {
   const files = [path.join(logDir, 'aider.jsonl')];
   const extra = envFor(env).AIDER_ANALYTICS_LOG;
@@ -816,7 +816,7 @@ const HOOK_MARK = 'usage-hook.mjs';
 export function cursorHooksFile(plat = process.platform, env = process.env) {
   return path.join(toolRoots(plat, env).home, '.cursor', 'hooks.json');
 }
-// Adds (or removes) FlowForge's `stop` hook in Cursor's user-level hooks.json,
+// Adds (or removes) Malomatia Flow's `stop` hook in Cursor's user-level hooks.json,
 // leaving every other hook exactly as it was. A hooks.json that is not valid
 // JSON is never overwritten.
 export function setCursorHook(on, { hookScript, plat = process.platform, env = process.env, nodePath = process.execPath } = {}) {
@@ -841,7 +841,7 @@ export function cursorHookInstalled(plat = process.platform, env = process.env) 
   return !!(cfg && cfg.hooks && Array.isArray(cfg.hooks.stop) && cfg.hooks.stop.some((h) => String(h && h.command).includes(HOOK_MARK)));
 }
 
-// The variables FlowForge manages live in tracking.json; each change rewrites
+// The variables Malomatia Flow manages live in tracking.json; each change rewrites
 // them as a whole - one registry write per variable on Windows, one marked
 // block in the shell profiles elsewhere. `run` executes a command (tests pass a
 // recorder; FF_USAGE_DRY=1 only lists the commands).

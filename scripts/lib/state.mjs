@@ -1,4 +1,4 @@
-// State engine for a FlowForge run - the single writer of .workbench/state.json.
+// State engine for a Malomatia Flow run - the single writer of .workbench/state.json.
 //
 // The orchestrator is a model: before this module it rewrote the whole state
 // document by hand at every transition (15-25 times per run), which cost a
@@ -21,10 +21,21 @@ export const LOG_MAX = 100;
 // --speed rows (mirrors the table in skills/flow/SKILL.md). Applied once at
 // init so state.json shows what actually runs and the orchestrator never has
 // to recompute it per stage.
+// `quality` spends the strongest model where reasoning decides the outcome
+// (plan, code, debug, security) and a fast-but-sound one where it does not
+// (review, commit) - putting opus-max/max on a commit message only made runs
+// take an hour without making them better.
+export const QUALITY_ROLES = {
+  analyst: { model: 'claude-opus-5-high', effort: 'high' },
+  researcher: { model: 'claude-opus-5-high', effort: 'high' },
+  tester: { model: 'claude-sonnet-5-high', effort: 'high' },
+  critic: { model: 'claude-sonnet-5-high', effort: 'high' },
+  shipper: { model: 'swe-1-7', effort: 'low' },
+};
 export const SPEED_TABLE = {
   fast: { model: 'swe-1-7-lightning', judge: 'gemini-3-7-flash-high', effort: 'low', loopCap: 1 },
   balanced: { model: 'claude-sonnet-5-high', effort: 'medium' },
-  quality: { model: 'claude-opus-5-max', effort: 'max' },
+  quality: { model: 'claude-opus-5-max', effort: 'max', roles: QUALITY_ROLES },
 };
 const JUDGES = new Set(['tester', 'critic']);
 
@@ -60,8 +71,9 @@ export function initState(flow, opts = {}) {
     };
     let model = s.model || null, effort = s.effort || null, maxLoops = s.onFail ? (Number(s.maxLoops) || 3) : null;
     if (row && s.agent) {
-      model = (row.judge && JUDGES.has(s.agent)) ? row.judge : row.model;
-      effort = row.effort;
+      const role = row.roles && row.roles[s.agent];
+      model = role ? role.model : (row.judge && JUDGES.has(s.agent)) ? row.judge : row.model;
+      effort = role ? role.effort : row.effort;
       if (row.loopCap && maxLoops) maxLoops = Math.min(maxLoops, row.loopCap);
     }
     if (model) st.model = model;
@@ -80,6 +92,10 @@ export function initState(flow, opts = {}) {
     flow: flow.name || '', flowTitle: flow.title || flow.name || '', flowTitleAr: flow.titleAr || flow.title || '',
     task, taskRaw: taskRaw ?? task, project, gateMode,
     speed: speed || null, size,
+    // When the caller knows which file the flow came from, its mtime is
+    // pinned here - the dashboard flags a run whose flow changed mid-flight.
+    flowFile: opts.flowFile || null,
+    flowMtime: opts.flowFile ? (() => { try { return fs.statSync(opts.flowFile).mtimeMs; } catch { return null; } })() : null,
     status: 'running', currentStage: null, startedAt: t, updatedAt: t,
     stages, loops: {}, log: [],
   };

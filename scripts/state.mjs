@@ -66,7 +66,7 @@ export function applyOps(project, state, ops, now) {
         const size = S.SIZES.includes(f.size) ? f.size : 'full';
         state = S.initState(flow, {
           task: typeof f.task === 'string' ? f.task : '', taskRaw: typeof f.raw === 'string' ? f.raw : undefined,
-          project, gateMode: typeof f.gate === 'string' ? f.gate : undefined,
+          project, gateMode: typeof f.gate === 'string' ? f.gate : undefined, flowFile: file,
           speed: typeof f.speed === 'string' && S.SPEED_TABLE[f.speed] ? f.speed : '',
           size, skip: typeof f.skip === 'string' ? f.skip.split(',').map((x) => x.trim()).filter(Boolean) : [], now,
         });

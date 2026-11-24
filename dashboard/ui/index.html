@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FlowForge</title>
+<title>Malomatia Flow</title>
 <style>
   /* =====================================================================
-     FlowForge design system - "glass" (Raycast / Arc inspired)
+     Malomatia Flow design system - "glass" (Raycast / Arc inspired)
      Layers: tokens -> base -> shell -> page template -> surfaces.
      Component styles further down only consume these tokens.
      Colour tokens are mirrored in studio.html (the two pages cannot share a
@@ -935,7 +935,7 @@
 </defs></svg>
 <div class="shell">
 <aside class="sidebar">
-  <div class="brand"><i class="logo"><svg class="ic" viewBox="0 0 24 24"><use href="#ic-flow"/></svg></i><b style="font-weight:inherit">Flow<span>Forge</span></b></div>
+  <div class="brand"><i class="logo"><svg class="ic" viewBox="0 0 24 24"><use href="#ic-flow"/></svg></i><b style="font-weight:inherit">Malomatia<span>Flow</span></b></div>
   <div class="projbox">
     <span class="fieldlbl" data-i18n="tt_project"></span>
     <span class="projpill">
@@ -1287,6 +1287,8 @@
         <div id="nodeInspector">
           <div class="inshead"><span data-i18n="ins_title"></span> <b id="insName"></b> <span class="tag" id="insId"></span></div>
           <div class="insgrid">
+            <label for="insProvider" data-i18n="ins_provider"></label>
+            <select id="insProvider"></select>
             <label for="insModel" data-i18n="ins_model"></label>
             <select id="insModel"></select>
             <label for="insEffort" data-i18n="ins_effort"></label>
@@ -1648,7 +1650,7 @@ const I18N = {
   en: {
     tab_overview: 'Overview', tab_activity: 'Live activity', tab_artifacts: 'Artifacts', tab_flows: 'Flows',
     tab_agents: 'Agents', tab_skills: 'Skills', tab_settings: 'Settings', tab_usage: 'Usage',
-    usage_title: 'Usage & cost', usage_scope_all: 'all my Devin sessions', usage_scope_ff: 'FlowForge only',
+    usage_title: 'Usage & cost', usage_scope_all: 'all my Devin sessions', usage_scope_ff: 'Malomatia Flow only',
     usage_refresh: '↻ Refresh', usage_by_model: 'By model', usage_by_project: 'By project', usage_by_flow: 'By flow',
     usage_rate_hint: 'Rate = ACUs per 1M effective tokens on YOUR account (cache reads weighted at 10%, as providers bill them). It is what the pre-run estimate prices each stage with.',
     usage_tasks: 'Every task', usage_sort_new: 'newest first', usage_sort_cost: 'most expensive first',
@@ -1697,7 +1699,7 @@ const I18N = {
     est_pipeline: 'for this pipeline ({n} agent stages)', est_upto: 'up to', est_if_fail: 'if a check fails once ({path})',
     est_model_tag: 'pipeline model — calibrates after the first run', est_calibrated: 'calibrated on {n} real runs',
     est_speed: 'speed', est_script: 'script, no model', est_retry_only: 'only if a check fails',
-    gate_open: 'Open the gate', notif_gate: 'FlowForge: "{stage}" is waiting for your decision', notif_done: 'FlowForge: the run finished ✓', notif_failed: 'FlowForge: the run stopped with an error',
+    gate_open: 'Open the gate', notif_gate: 'Malomatia Flow: "{stage}" is waiting for your decision', notif_done: 'Malomatia Flow: the run finished ✓', notif_failed: 'Malomatia Flow: the run stopped with an error',
     runs_title: 'Recent runs', runs_rerun: 'Run this again', ago_now: 'just now', ago_min: '{n} min ago', ago_hr: '{n} h ago',
     tab_runs: 'Runs', run_queue_btn: '＋ Queue this task', run_queued_pos: 'Queued — position {n}. It starts when this project is free.',
     board_active: 'In flight — all projects', board_none_active: 'Nothing is running right now.', board_starting: 'starting…',
@@ -1768,7 +1770,7 @@ const I18N = {
     pal_researcher: 'Analytics', pal_optimizer: 'Performance', pal_security: 'Security',
     pal_architecture: 'Architecture', pal_conventions: 'Conventions', pal_rules: 'Rules',
     pal_scan: 'Scan', pal_checks: 'Checks', pal_script: 'Script', pal_custom: 'Custom',
-    ins_title: 'Step settings:', ins_model: 'Model family', ins_effort: 'Model level', ins_gate: 'Gate',
+    ins_title: 'Step settings:', ins_provider: 'Provider', ins_model: 'Model family', ins_effort: 'Model level', ins_gate: 'Gate',
     ins_level_default: 'family default',
     ins_loops: 'Retry loops', ins_pre: 'Pre-scripts', ins_artifact: 'Artifact',
     ins_inherit: 'inherit (role profile)', eff_high: 'high', eff_medium: 'medium', eff_low: 'low',
@@ -1845,12 +1847,14 @@ const I18N = {
     retarget_all: '⇄ Retarget every flow to this executor',
     retarget_none: 'Every flow already uses models this executor supports',
     retarget_confirm: 'These flows will get a copy retargeted to the selected executor:',
-    retarget_note: 'The originals stay untouched (* = this executor\'s own copy, updated in place). Only Devin can run a flow, so its flows must keep Devin models.',
+    retarget_note: 'The originals stay untouched (* = this executor\'s own copy, updated in place). A flow must carry models its executor actually has.',
     retarget_done: 'Flows retargeted',
     provider_build_flow: '⚙ Build flow from detected modules',
     provider_built: 'Flow built from detected modules — review and save',
-    provider_not_runnable: 'Only Devin can run flows; the other providers are for filtering and building',
+    provider_not_runnable: 'This provider has no headless CLI - it cannot run flows (filtering and building only)',
     provider_viewonly: 'view only',
+    provider_inherit: 'run provider',
+    provider_not_ready: 'Provider not ready (check its card in Executors)',
     nav_workspace: 'Workspace', nav_build: 'Build', nav_insights: 'Insights', nav_system: 'System', nav_studio: 'Studio',
     nav_tip_title: 'Tip', nav_tip: 'Type /flow task "..." in your agent chat to run the same pipelines without the dashboard.',
     sub_overview: 'Describe a task, launch a pipeline and steer it stage by stage.',
@@ -1865,8 +1869,8 @@ const I18N = {
     field_flow: 'Flow', how_it_works: 'How the composer works',
     list_roles: 'Roles', list_skills: 'Skills', list_docs: 'Documents', art_pick: 'Pick a document on the left to read it here.',
     opts_btn: 'Options', opt_executor: 'Executor', opt_gates: 'Gates', opt_speed: 'Speed', opt_size: 'Size',
-    est_if_retry: 'if a check fails', est_stages_n: '{n} stages', est_breakdown: 'Cost by stage',
-    hero_title: 'What should FlowForge build?', cmdk_open: 'Quick jump', cmdk_ph: 'Jump to a page…',
+    est_if_retry: 'if a check fails', est_slow: 'slowest setting', est_slow_tip: 'Max quality runs the strongest model at full effort on planning, coding and debugging - expect a large task to take much longer than with Balanced.', est_stages_n: '{n} stages', est_breakdown: 'Cost by stage',
+    hero_title: 'What should Malomatia Flow build?', cmdk_open: 'Quick jump', cmdk_ph: 'Jump to a page…',
     grp_current_run: 'Current run', grp_recent: 'Recent', grp_new_run: 'Queue another run',
     prov_more: 'Other supported tools, not on this machine ({n})', list_flows: 'Flows', grp_breakdown: 'Breakdown', grp_tasks: 'Tasks',
     grp_setup: 'Setup', grp_workspace: 'Workspace', grp_executors: 'Executors', grp_prefs: 'Preferences',
@@ -1877,11 +1881,12 @@ const I18N = {
     aria_proj_path: 'Project folder path', aria_new_flow: 'New flow name', aria_new_role: 'New role name', aria_new_skill: 'New skill name',
     aria_flow_json: 'Flow file (JSON)', aria_agent_file: 'Role file', aria_skill_file: 'Skill file',
     provider_flow_filtered: 'Flow list filtered by the selected executor',
+    flow_changed_warn: 'This flow was edited after the run started - the run is still applying the older version',
   },
   ar: {
     tab_overview: 'نظرة عامة', tab_activity: 'النشاط لايف', tab_artifacts: 'المخرجات', tab_flows: 'الفلوز',
     tab_agents: 'الوكلاء', tab_skills: 'المهارات', tab_settings: 'الإعدادات', tab_usage: 'الاستهلاك',
-    usage_title: 'الاستهلاك والتكلفة', usage_scope_all: 'كل جلسات Devin بتاعتي', usage_scope_ff: 'FlowForge بس',
+    usage_title: 'الاستهلاك والتكلفة', usage_scope_all: 'كل جلسات Devin بتاعتي', usage_scope_ff: 'Malomatia Flow بس',
     usage_refresh: '↻ حدّث', usage_by_model: 'حسب الموديل', usage_by_project: 'حسب المشروع', usage_by_flow: 'حسب الفلو',
     usage_rate_hint: 'السعر = ACU لكل مليون توكن فعلي على حسابك إنت (الكاش المقروء محسوب بـ 10% زي ما الشركات بتحاسب). ده اللي التقدير قبل التشغيل بيسعّر بيه كل مرحلة.',
     usage_tasks: 'كل تاسك', usage_sort_new: 'الأحدث الأول', usage_sort_cost: 'الأغلى الأول',
@@ -1930,7 +1935,7 @@ const I18N = {
     est_pipeline: 'للبايبلاين ده ({n} مراحل بوكلاء)', est_upto: 'لحد', est_if_fail: 'لو فحص فشل مرة ({path})',
     est_model_tag: 'تقدير من البايبلاين — بيتظبط بعد أول تشغيل', est_calibrated: 'متظبط على {n} تشغيلات حقيقية',
     est_speed: 'السرعة', est_script: 'سكربت، من غير موديل', est_retry_only: 'بس لو فحص فشل',
-    gate_open: 'افتح البوابة', notif_gate: 'FlowForge: مرحلة "{stage}" مستنية قرارك', notif_done: 'FlowForge: التشغيل خلص ✓', notif_failed: 'FlowForge: التشغيل وقف بخطأ',
+    gate_open: 'افتح البوابة', notif_gate: 'Malomatia Flow: مرحلة "{stage}" مستنية قرارك', notif_done: 'Malomatia Flow: التشغيل خلص ✓', notif_failed: 'Malomatia Flow: التشغيل وقف بخطأ',
     runs_title: 'آخر التشغيلات', runs_rerun: 'شغّله تاني', ago_now: 'دلوقتي', ago_min: 'قبل {n} دقيقة', ago_hr: 'قبل {n} ساعة',
     tab_runs: 'التشغيلات', run_queue_btn: '＋ ضيف للطابور', run_queued_pos: 'دخل الطابور — رقم {n}. هيبدأ أول ما المشروع ده يفضى.',
     board_active: 'شغّال دلوقتي — كل المشاريع', board_none_active: 'مفيش حاجة شغّالة دلوقتي.', board_starting: 'بيبدأ…',
@@ -2001,7 +2006,7 @@ const I18N = {
     pal_researcher: 'إحصائيات', pal_optimizer: 'أداء', pal_security: 'أمان',
     pal_architecture: 'معمارية', pal_conventions: 'أعراف', pal_rules: 'قواعد',
     pal_scan: 'مسح', pal_checks: 'فحوص', pal_script: 'سكربت', pal_custom: 'مخصصة',
-    ins_title: 'إعدادات الخطوة:', ins_model: 'عائلة الموديل', ins_effort: 'درجة الموديل', ins_gate: 'البوابة',
+    ins_title: 'إعدادات الخطوة:', ins_provider: 'المزوّد', ins_model: 'عائلة الموديل', ins_effort: 'درجة الموديل', ins_gate: 'البوابة',
     ins_level_default: 'الدرجة الافتراضية للعائلة',
     ins_loops: 'عدد المحاولات', ins_pre: 'سكربتات قبل الخطوة', ins_artifact: 'المخرج',
     ins_inherit: 'الافتراضي (من ملف الدور)', eff_high: 'عالي', eff_medium: 'متوسط', eff_low: 'منخفض',
@@ -2078,12 +2083,14 @@ const I18N = {
     retarget_all: '⇄ حوّل كل الفلوز للمنفّذ ده',
     retarget_none: 'كل الفلوز بتستخدم موديلات المنفّذ ده خلاص',
     retarget_confirm: 'الفلوز دي هياخدوا نسخة محوّلة للمنفّذ المختار:',
-    retarget_note: 'الأصل مابيتلمسش (والنجمة * يعني نسخة المنفّذ ده نفسه، بتتحدّث في مكانها). ديفين بس هو اللي بيشغّل، ففلوزه لازم تفضل بموديلاته.',
+    retarget_note: 'الأصل مابيتلمسش (والنجمة * يعني نسخة المنفّذ ده نفسه، بتتحدّث في مكانها). الفلو لازم يبقى بموديلات المنفّذ اللي هيشغّله.',
     retarget_done: 'الفلوز اتحوّلت',
     provider_build_flow: '⚙ ابنِ فلو من الوحدات المكتشفة',
     provider_built: 'الفلو اتبنى من الوحدات المكتشفة — راجعه واحفظه',
-    provider_not_runnable: 'ديفين بس هو اللي بيشغّل الفلوز؛ باقي المزوّدين للفلترة والبناء',
+    provider_not_runnable: 'المزوّد ده مفيش ليه CLI بيشتغل هيدلس - مش بيقدر يشغّل فلوز (فلترة وبناء بس)',
     provider_viewonly: 'عرض فقط',
+    provider_inherit: 'مزوّد التشغيل',
+    provider_not_ready: 'المزوّد مش جاهز (بص على الكارت بتاعه في المنفّذين)',
     nav_workspace: 'مساحة العمل', nav_build: 'البناء', nav_insights: 'التحليلات', nav_system: 'النظام', nav_studio: 'الاستوديو',
     nav_tip_title: 'نصيحة', nav_tip: 'اكتب /flow task "..." في شات الوكيل عشان تشغّل نفس الفلوز من غير الداشبورد.',
     sub_overview: 'اوصف التاسك، شغّل الفلو، وتابعه مرحلة بمرحلة.',
@@ -2098,8 +2105,8 @@ const I18N = {
     field_flow: 'الفلو', how_it_works: 'إزاي الكومبوزر بيشتغل',
     list_roles: 'الأدوار', list_skills: 'الأوامر', list_docs: 'المستندات', art_pick: 'اختار مستند من الجنب عشان تقراه هنا.',
     opts_btn: 'الإعدادات', opt_executor: 'المنفّذ', opt_gates: 'البوابات', opt_speed: 'السرعة', opt_size: 'الحجم',
-    est_if_retry: 'لو فحص فشل', est_stages_n: '{n} مراحل', est_breakdown: 'التكلفة لكل مرحلة',
-    hero_title: 'عاوز FlowForge يبني إيه؟', cmdk_open: 'انتقال سريع', cmdk_ph: 'روح لصفحة…',
+    est_if_retry: 'لو فحص فشل', est_slow: 'أبطأ إعداد', est_slow_tip: 'أعلى جودة بيشغّل أقوى موديل بأقصى مجهود في التخطيط والكود والتصحيح - التاسك الكبير هياخد وقت أطول بكتير من الإعداد المتوازن.', est_stages_n: '{n} مراحل', est_breakdown: 'التكلفة لكل مرحلة',
+    hero_title: 'عاوز Malomatia Flow يبني إيه؟', cmdk_open: 'انتقال سريع', cmdk_ph: 'روح لصفحة…',
     grp_current_run: 'التشغيل الحالي', grp_recent: 'الأخير', grp_new_run: 'شغّل حاجة تانية',
     prov_more: 'أدوات تانية مدعومة، مش متسطّبة على الجهاز ({n})', list_flows: 'الفلوز', grp_breakdown: 'التفاصيل', grp_tasks: 'التاسكات',
     grp_setup: 'الإعداد', grp_workspace: 'مساحة العمل', grp_executors: 'المنفّذين', grp_prefs: 'التفضيلات',
@@ -2110,6 +2117,7 @@ const I18N = {
     aria_proj_path: 'مسار مجلد المشروع', aria_new_flow: 'اسم الفلو الجديد', aria_new_role: 'اسم الدور الجديد', aria_new_skill: 'اسم المهارة الجديدة',
     aria_flow_json: 'ملف الفلو (JSON)', aria_agent_file: 'ملف الدور', aria_skill_file: 'ملف المهارة',
     provider_flow_filtered: 'قايمة الفلوز مفلترة حسب المنفّذ المختار',
+    flow_changed_warn: 'الفلو اتعدّل بعد ما الرن بدأ - الرن لسه بيطبّق النسخة الأقدم',
   },
 };
 let LANG = localStorage.getItem('ff.lang') || 'en';
@@ -2348,6 +2356,7 @@ let pollCount = 0;
 let connOk = null;
 
 let pollBusy = false;
+let staleWarnedAt = null; // startedAt of the run we already warned about
 async function poll() {
   if (pollBusy || document.hidden) return; // no overlap, and nothing polls a hidden tab
   pollBusy = true;
@@ -2357,6 +2366,11 @@ async function poll() {
     connOk = true;
     $('conn').textContent = t('conn_ok');
     lastData = d;
+    // The flow file changed after this run snapshotted it - warn once per run.
+    if (d.state && d.state.flowChanged && d.state.startedAt !== staleWarnedAt) {
+      staleWarnedAt = d.state.startedAt;
+      toast(t('flow_changed_warn'), 'warn');
+    }
     renderAll(d);
   } catch (e) {
     connOk = false;
@@ -2787,10 +2801,11 @@ $('btnApprove').onclick = () => decide('approve');
 $('btnReject').onclick = () => decide('reject');
 
 /* ============================== executor providers ==============================
-   The selected provider drives three things: which flows the run bar lists (a
+   The selected provider drives four things: which flows the run bar lists (a
    flow with no `providers` field is unrestricted), which model catalogue the
-   inspector and the visual builders show, and which editor the Flows tab probes
-   for modules. Only Devin can actually RUN a flow - see provider_not_runnable. */
+   inspector and the visual builders show, which editor the Flows tab probes
+   for modules, and which CLI the engine drives when the run starts. Any
+   provider with a headless run spec executes flows; the rest are view-only. */
 const PROVIDER_LABELS = {
   devin: () => t('provider_devin'),
   copilot: () => t('provider_copilot'),
@@ -3001,7 +3016,7 @@ async function runEstimate() {
   if (!flow) { $('estBox').style.display = 'none'; return; }
   const seq = ++estSeq;
   try {
-    const e = await post('/api/estimate', { flow, task: $('runTask').value, speed: $('runSpeed').value, size: $('runSize').value });
+    const e = await post('/api/estimate', { flow, task: $('runTask').value, speed: $('runSpeed').value, size: $('runSize').value, provider: PROVIDER });
     if (seq !== estSeq) return;
     lastEstimate = e;
     if (e.dollars) USD = e.dollars;
@@ -3064,6 +3079,7 @@ function renderEstimate() {
     + `<span class="est-cost" title="${esc(tip.join('\n'))}">≈ ${money(p.happy.acu, p.happy.usd)}</span>`
     + `<span class="est-meta">${esc(t('est_stages_n').replace('{n}', agentN))} · ~${p.happy.calls} ${esc(t('u_calls'))} · ${fmtTok(p.happy.tokens)} tok</span>`
     + risk
+    + ($('runSpeed').value === 'quality' ? `<span class="est-risk" title="${esc(t('est_slow_tip'))}">${esc(t('est_slow'))}</span>` : '')
     + `</div>`
     + `<details id="estDetails"${openPref ? ' open' : ''}><summary>${esc(t('est_breakdown'))}</summary>`
     + `<div class="est-list">${rows}</div></details>`;
@@ -3343,6 +3359,7 @@ $('btnRun').onclick = async () => {
   } catch (e) {
     $('btnRun').disabled = false;
     if (e.message === 'provider_not_runnable') toast(t('provider_not_runnable'), 'err');
+    else if (String(e.message || '').startsWith('provider_not_ready')) toast(t('provider_not_ready') + ' - ' + e.message.split(':')[1], 'err');
     else if (e.message === 'no_executor') { toast(t('no_executor'), 'err'); fetchCli(true); }
     else if (e.message === 'cli_not_authenticated') { toast(t('cli_not_auth'), 'err'); fetchCli(true); }
     else toast(e.message, 'err');
@@ -4277,6 +4294,7 @@ function renderInspector() {
   const R = FROLES[n.role];
   $('insName').textContent = (LANG === 'ar' && n.stage.titleAr) ? n.stage.titleAr : (n.stage.title || R.title);
   $('insId').textContent = n.id + (n.stage.agent ? ' · ' + n.stage.agent : ' · script');
+  fillProviderSelect(n);
   fillModelSelects(n);
   $('insGate').value = n.gate;
   $('insLoops').value = n.maxLoops;
@@ -4319,6 +4337,19 @@ async function fetchModels() {
 function fillModelSelects(n) {
   fillFamilySelects($('insModel'), $('insEffort'), n.stage.model || '');
 }
+/* A step may pin a provider different from the run's executor (stage.provider)
+   - the engine spawns that step on its own CLI. Empty means "run provider". */
+function fillProviderSelect(n) {
+  const sel = $('insProvider');
+  const list = (lastData && lastData.providers || []).filter((p) => p.runnable !== false);
+  const sig = JSON.stringify(list.map((p) => p.id)) + '|' + LANG;
+  if (sel.dataset.sig !== sig) {
+    sel.innerHTML = `<option value="">${esc(t('provider_inherit'))}</option>` + list.map((p) =>
+      `<option value="${esc(p.id)}">${esc(p.id)}</option>`).join('');
+    sel.dataset.sig = sig;
+  }
+  sel.value = n.stage.provider || '';
+}
 /* Switching executor must not leave the canvas pinned to models the new tool
    does not have. The server owns the mapping rule (it is derived from the
    catalogues); here we only apply the returned map and let the user save. */
@@ -4342,6 +4373,17 @@ async function retargetCanvasModels() {
   renderInspector();
   toast(`${t('models_retargeted')} (${changed})`, 'ok');
 }
+$('insProvider').onchange = () => withSelected(async (n) => {
+  const pid = $('insProvider').value;
+  if (!pid) delete n.stage.provider;
+  else n.stage.provider = pid;
+  if (!n.stage.model || !pid) return;
+  try {
+    const { map } = await post('/api/retarget-models', { provider: pid, models: [n.stage.model] });
+    if (map && map[n.stage.model]) { n.stage.model = map[n.stage.model]; delete n.stage.effort; }
+    renderInspector();
+  } catch { /* keep the model the user picked */ }
+});
 $('insModel').onchange = () => withSelected((n) => {
   const slug = $('insModel').value;
   delete n.stage.effort;
@@ -4845,7 +4887,7 @@ function skillFileContent() {
 /* ---------- skills: visual view ---------- */
 const SKILL_PRESETS = {
   runflow: { icon: 'ic-bolt', color: '#58a6ff',
-    desc: 'Runs a FlowForge pipeline on the task the user typed.',
+    desc: 'Runs a Malomatia Flow pipeline on the task the user typed.',
     body: (s) => [`Run the **${s.flow}** flow on the user's request.`, '',
       `Invoke the /flow skill: \`/flow ${s.flow} "<the user's task, refined>" --gates=${s.gate}\`.`,
       'Refine the raw request into one precise task sentence first, then start the flow',

@@ -1,14 +1,14 @@
 ---
 name: flow-daemon
-description: Turn this Devin session into a FlowForge daemon - it listens for run requests submitted from the dashboard and executes them, so the user never has to touch the editor
+description: Turn this Devin session into a Malomatia Flow daemon - it listens for run requests submitted from the dashboard and executes them, so the user never has to touch the editor
 argument-hint: "[project path]"
 triggers:
   - user
 ---
 
-You are now the **FlowForge daemon** for this project. The user starts you once and then works entirely from the dashboard: they press Run there, you receive the request here and execute the pipeline; they watch and approve everything on the dashboard. You ARE the orchestrator for every run you pick up (never invoke another skill), and every run is **headless**: the user watches the dashboard, not this conversation, so never ask a question in the chat or wait for a typed answer — not even at Step 0 task refinement.
+You are now the **Malomatia Flow daemon** for this project. The user starts you once and then works entirely from the dashboard: they press Run there, you receive the request here and execute the pipeline; they watch and approve everything on the dashboard. You ARE the orchestrator for every run you pick up (never invoke another skill), and every run is **headless**: the user watches the dashboard, not this conversation, so never ask a question in the chat or wait for a typed answer — not even at Step 0 task refinement.
 
-WORKBENCH: read the `workbench` field of `flowforge.json` inside Devin's config directory (written by `install.mjs`): `$DEVIN_CONFIG_DIR` when set, else `%APPDATA%\devin` on Windows, `~/Library/Application Support/devin` on macOS, `~/.config/devin` (then `~/.devin`) on Linux. Missing file → FlowForge is not installed; ask the user to run `node install.mjs` and stop.
+WORKBENCH: read the `workbench` field of `flowforge.json` inside Devin's config directory (written by `install.mjs`): `$DEVIN_CONFIG_DIR` when set, else `%APPDATA%\devin` on Windows, `~/Library/Application Support/devin` on macOS, `~/.config/devin` (then `~/.devin`) on Linux. Missing file → Malomatia Flow is not installed; ask the user to run `node install.mjs` and stop.
 PROJECT: the current working directory, unless the user passed another path as the argument.
 
 ## Announce

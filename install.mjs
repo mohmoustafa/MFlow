@@ -1,4 +1,4 @@
-// install.mjs - Wire the FlowForge workbench into Devin's global config
+// install.mjs - Wire the Malomatia Flow workbench into Devin's global config
 // (%APPDATA%\devin on Windows, ~/Library/Application Support/devin on macOS,
 // ~/.config/devin on Linux - see scripts/lib/platform.mjs).
 // Creates directory links so edits in this repo apply live. No admin rights needed.
@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { agentConfigDir, agentConfigCandidates, linkType, isLink, removeLink } from './scripts/lib/platform.mjs';
+import { agentConfigDir, agentConfigCandidates, linkType, isLink, removeLink, providerRoots } from './scripts/lib/platform.mjs';
+import { PROVIDERS, RUN_PROVIDERS, detectProvider } from './dashboard/providers.mjs';
 
 const REPO = path.dirname(fileURLToPath(import.meta.url));
 const FORCE = process.argv.includes('--force');
@@ -43,10 +44,14 @@ function installLink(link, target, label) {
         else if (FORCE) fs.rmSync(childLink, { recursive: true, force: true });
         else { console.log(`SKIP ${label}: ${name} already exists (use --force to replace)`); continue; }
       }
-      if (fs.statSync(childTarget).isDirectory()) {
-        fs.symlinkSync(childTarget, childLink, LINK);
-        console.log(`OK  ${label}: link ${name}`);
-      } else {
+      const linked = () => {
+        try { fs.symlinkSync(childTarget, childLink, fs.statSync(childTarget).isDirectory() ? LINK : 'file'); return true; }
+        catch { return false; }
+      };
+      if (linked()) console.log(`OK  ${label}: link ${name}`);
+      else {
+        // File symlinks can be refused without developer mode; a copy is the
+        // honest fallback (doctor reports it as copied, not linked).
         fs.copyFileSync(childTarget, childLink);
         console.log(`OK  ${label}: copied ${name} (file copy - rerun install after edits)`);
       }
@@ -82,7 +87,7 @@ function stripHardcodedPaths() {
   }
 }
 
-console.log('FlowForge install');
+console.log('Malomatia Flow install');
 console.log(`  repo:  ${REPO}`);
 console.log(`  devin: ${DEVIN}`);
 console.log('');
@@ -93,6 +98,59 @@ console.log('');
 
 installLink(path.join(DEVIN, 'skills'), path.join(REPO, 'skills'), 'skills');
 installLink(path.join(DEVIN, 'agents'), path.join(REPO, 'agents'), 'agents');
+
+// ---- every other runnable agent CLI ----
+// Each gets the same workbench: the locator so its sessions can find the repo,
+// linked skill/agent dirs where its module format matches ours, and a thin
+// generated command file per skill where it takes user prompts/commands.
+const SKILL_NAMES = fs.readdirSync(path.join(REPO, 'skills'))
+  .filter((d) => fs.existsSync(path.join(REPO, 'skills', d, 'SKILL.md')));
+
+// A stub, not a copy of SKILL.md: the canonical text stays in the repo (one
+// source of truth, edits are live) and the stub just points the CLI at it.
+function promptStub(name, ext) {
+  const body = `Read ${path.join(REPO, 'skills', name, 'SKILL.md')} and follow it exactly for the task the user describes.`;
+  if (ext === '.toml') return `description = "Malomatia Flow: ${name}"\nprompt = """${body}"""\n`;
+  return `---\ndescription: Malomatia Flow ${name}\n---\n${body}\n`;
+}
+
+async function installProvider(id) {
+  const det = await detectProvider(id).catch(() => null);
+  if (!det || !det.installed) { console.log(`SKIP ${id}: not installed`); return; }
+  const roots = providerRoots();
+  const ovr = process.env['FF_PROVIDER_HOME_' + id.toUpperCase()];
+  if (ovr) for (const k of Object.keys(roots)) roots[k] = ovr;
+  for (const mod of PROVIDERS[id].userModules || []) {
+    const root = roots[mod.base];
+    if (!root) continue;
+    const p = path.join(root, ...mod.rel);
+    if (mod.junctionOf) {
+      installLink(p, path.join(REPO, mod.junctionOf), `${id}:${mod.kind}`);
+    } else if (mod.kind === 'agent' && mod.type === 'dir') {
+      installLink(p, path.join(REPO, 'agents'), `${id}:agents`);
+    } else if (mod.kind === 'prompt' && mod.type === 'dir') {
+      fs.mkdirSync(p, { recursive: true });
+      const ext = (mod.exts || ['.md'])[0];
+      for (const name of SKILL_NAMES) {
+        fs.writeFileSync(path.join(p, `${name}${ext}`), promptStub(name, ext), 'utf8');
+      }
+      console.log(`OK  ${id}: ${SKILL_NAMES.length} command files -> ${p}`);
+    }
+  }
+  // The locator sits one level up from the first module path - the provider's
+  // own config dir - so a session can always find the workbench.
+  const first = (PROVIDERS[id].userModules || [])[0];
+  if (first && roots[first.base]) {
+    const cfgDir = path.dirname(path.join(roots[first.base], ...first.rel));
+    fs.mkdirSync(cfgDir, { recursive: true });
+    fs.writeFileSync(path.join(cfgDir, 'flowforge.json'),
+      JSON.stringify({ workbench: REPO, installedAt: new Date().toISOString() }, null, 2));
+    console.log(`OK  ${id}: locator -> ${cfgDir}`);
+  }
+}
+
+console.log('');
+for (const id of RUN_PROVIDERS.filter((x) => x !== 'devin')) await installProvider(id);
 
 // Verify instead of listing: the doctor checks the links, the locator, every
 // skill/agent/flow file and the state engine, and names the fix for anything

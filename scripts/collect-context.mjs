@@ -38,7 +38,7 @@ function fingerprint() {
   const h = crypto.createHash('sha1').update(`v${CACHE_VERSION}\n${PROJECT}\n`);
   if (inGit) {
     h.update(git('rev-parse HEAD') || 'no-head');
-    // .workbench/ is FlowForge's own scratch space - its churn is not a project change.
+    // .workbench/ is Malomatia Flow's own scratch space - its churn is not a project change.
     h.update((git('status --porcelain') || '').split('\n').filter((l) => !l.includes('.workbench/')).join('\n'));
   } else {
     try {

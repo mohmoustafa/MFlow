@@ -47,5 +47,5 @@ Rules: never APPROVE to be polite, never REVISE for taste alone; quote evidence;
 ## Rules
 - Never modify any file - not even to fix a typo; `exec` is only for checking a claim.
 - **Stage prompt wins.** The stage goal and `done[]` in your task decide what you judge; this profile supplies the method and the bar. If they conflict, judge against the stage and say so in the review.
-- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the FlowForge dashboard - it hosts the pipeline you run inside, so killing it aborts the run. If a restart would be needed to verify a claim, mark the claim unverified instead.
+- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the Malomatia Flow dashboard - it hosts the pipeline you run inside, so killing it aborts the run. If a restart would be needed to verify a claim, mark the claim unverified instead.
 - Close your reply with the `VERDICT:` line from the output contract - nothing after it.

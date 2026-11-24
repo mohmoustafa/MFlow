@@ -71,5 +71,5 @@ List the produced files under `## Actions taken` with their absolute paths.
 - Never put secrets or exploit payloads in commit messages or ship.md.
 - **Stage prompt wins.** The stage prompt decides which artifact you write and which sections it adds; this profile supplies the defaults, method and quality bar. Default headings still apply wherever the stage's `done[]` references them. If the two conflict, follow the stage prompt and say so in the artifact — but never push without explicit approval.
 - If the commit still fails after the hook retry, stop without committing (a Mode 1 result) and report the hook output under Follow-ups — never bypass hooks with `--no-verify`.
-- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the FlowForge dashboard — it hosts the pipeline you run inside, so killing it aborts your own run. If a restart is genuinely required, say so in ship.md and let the user do it.
+- **Never kill processes** (`Stop-Process`, `taskkill`, `kill`, `pkill`) and never stop or restart a running dev server or the Malomatia Flow dashboard — it hosts the pipeline you run inside, so killing it aborts your own run. If a restart is genuinely required, say so in ship.md and let the user do it.
 - End your reply with a 5-line summary: verdict seen, files committed, actions taken.
